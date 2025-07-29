@@ -1,3 +1,6 @@
+% ---------- INCLUDES ----------
+include "globals.mzn";
+
 % ---------- Instance Parameters ----------
 int: teams;
 int: weeks = teams - 1;
@@ -8,75 +11,83 @@ set of int: Weeks = 1..weeks;
 set of int: Periods = 1..periods;
 
 % ---------- VARIABLES ----------
-% match[t1, t2, p, w] = true if team t1 plays team t2 at period p, week w (only for t1 < t2)
-array[Teams, Teams, Periods, Weeks] of var bool: match;
+% match[w, p] = [home, away] team in week w and period p
+array[Weeks, Periods] of var Teams: home;
+array[Weeks, Periods] of var Teams: away;
+
+% Flattened list of matches for easier global constraints
+array[1..weeks*periods] of var Teams: flat_home = [home[w,p] | w in Weeks, p in Periods];
+array[1..weeks*periods] of var Teams: flat_away = [away[w,p] | w in Weeks, p in Periods];
 
 % ---------- CONSTRAINTS ----------
 
-% Disable duplicate and symmetric matches
-constraint
-  forall(t1, t2 in Teams where t1 >= t2, p in Periods, w in Weeks) (
-    match[t1,t2,p,w] = false
-  );
-
-% (1) Each cell (week, period) must contain exactly one match
+% (1) Teams in a match must be different
 constraint
   forall(w in Weeks, p in Periods)(
-    sum(t1, t2 in Teams where t1 < t2)(
-      bool2int(match[t1,t2,p,w])
-    ) = 1
+    home[w, p] != away[w, p]
   );
 
-% (2) Each team plays exactly once per week
+% (2) Team indices ordered: home < away (to avoid duplicate {i,j} and {j,i})
 constraint
-  forall(t in Teams, w in Weeks)(
-    sum(p in Periods, t1 in Teams where t1 != t)(
-      bool2int(match[min(t,t1), max(t,t1), p, w])
-    ) = 1
+  forall(w in Weeks, p in Periods)(
+    home[w, p] < away[w, p]
   );
 
-% (3) Each team plays at most twice in the same period throughout the tournament
+% (3) Each team plays exactly once per week
 constraint
-  forall(t in Teams, p in Periods)(
-    sum(w in Weeks, t1 in Teams where t1 != t)(
-      bool2int(match[min(t,t1), max(t,t1), p, w])
-    ) <= 2
+  forall(w in Weeks)(
+    alldifferent([home[w,p] | p in Periods] ++ [away[w,p] | p in Periods])
   );
 
 % (4) Each match {t1, t2} occurs exactly once in the tournament
+array[Teams, Teams] of var 0..1: played;
 constraint
   forall(t1, t2 in Teams where t1 < t2)(
-    sum(p in Periods, w in Weeks)(
-      bool2int(match[t1,t2,p,w])
-    ) = 1
+    played[t1, t2] = sum([bool2int(home[w,p] = t1 /\ away[w,p] = t2) | w in Weeks, p in Periods])
+  ) /\
+  forall(t1, t2 in Teams where t1 < t2)(
+    played[t1, t2] = 1
   );
 
-% ---------- SYMMETRY BREAKING ----------
+% (5) Each team plays at most twice in the same period throughout the tournament
 constraint
-  forall(i in 1..periods)(
-    match[2*i-1, 2*i, i, 1] = true
+  forall(t in Teams, p in Periods)(
+    sum([bool2int(home[w,p] = t \/ away[w,p] = t) | w in Weeks]) <= 2
   );
 
-% ---------- TABULAR OUTPUT ----------
+% ---------- GLOBAL CONSTRAINTS ----------
+% Enforce each team appears exactly (teams - 1) times across all matches
+constraint
+  global_cardinality(flat_home ++ flat_away, [i | i in Teams], [teams - 1 | i in Teams]);
+
+
+% ---------- SYMMETRY BREAKING CONSTRAINTS ----------
+
+% (SB1) Fix the first week as consecutive pairs: [1,2], [3,4], [5,6], etc.
+constraint
+  forall(p in Periods)(
+    home[1, p] = 2*p - 1 /\
+    away[1, p] = 2*p
+  );
+
+constraint
+  forall(w in Weeks, p in 1..periods-1)(
+    home[w, p] < home[w, p+1] \/
+    (home[w, p] = home[w, p+1] /\ away[w, p] < away[w, p+1])
+  );
+
+solve satisfy;
+
+% ---------- OUTPUT ----------
 output [
-  "\t" ++ concat([ "W" ++ show(w) ++ "\t" | w in Weeks ]) ++ "\n"
+  "[\n"
 ] ++
 [
-  "P" ++ show(p) ++ "\t" ++
-  concat([
-    let {
-      array[int] of string: matches_in_cell = [
-        if fix(match[t1,t2,p,w]) then
-          "T" ++ show(t1) ++ "-T" ++ show(t2)
-        else
-          ""
-        endif
-        | t1, t2 in Teams where t1 < t2
-      ],
-      string: match_str = join(", ", [m | m in matches_in_cell where m != ""])
-    } in
-      if match_str == "" then "-\t" else match_str ++ "\t" endif
-    | w in Weeks
-  ]) ++ "\n"
+  "  [" ++ 
+  join(", ", ["[" ++ show(home[w,p]) ++ ", " ++ show(away[w,p]) ++ "]" | w in Weeks]) ++
+  if p < periods then "]\n" else "]\n" endif
   | p in Periods
+] ++
+[
+  "]\n"
 ];
