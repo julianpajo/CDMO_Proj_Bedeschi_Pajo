@@ -5,8 +5,8 @@ import json
 import argparse
 import sys
 
-def get_elements(solution):
 
+def get_elements(solution):
     periods = [s for s in solution]
     matches = [m for s in periods for m in s]
     teams = [t for m in matches for t in m]
@@ -15,13 +15,13 @@ def get_elements(solution):
 
 
 def get_weeks(periods, n):
-    return [[p[i] for p in periods] for i in range(n-1)]
+    return [[p[i] for p in periods] for i in range(n - 1)]
 
 
 def fatal_errors(solution, obj, time, optimal, teams):
     fatal_errors = []
 
-    if len(solution) == 0 and (not (time == 300 and not optimal) and not (time == 0 and optimal) and obj!='None'):
+    if len(solution) == 0 and (not (time == 300 and not optimal) and not (time == 0 and optimal) and obj != 'None'):
         fatal_errors.append('The solution cannot be empty!!!')
         return fatal_errors
 
@@ -33,13 +33,13 @@ def fatal_errors(solution, obj, time, optimal, teams):
 
         n = max(teams)
 
-        if any([t not in set(teams) for t in range(1,n+1)]):
+        if any([t not in set(teams) for t in range(1, n + 1)]):
             fatal_errors.append(f'Missing team in the solution or team out of range!!!')
 
-        if n%2 != 0:
+        if n % 2 != 0:
             fatal_errors.append(f'"n" should be even!!!')
 
-        if len(solution) != n//2:
+        if len(solution) != n // 2:
             fatal_errors.append(f'the number of periods is not compliant!!!')
 
         if any([len(s) != n - 1 for s in solution]):
@@ -52,7 +52,6 @@ def fatal_errors(solution, obj, time, optimal, teams):
 
 
 def check_solution(solution: list, obj, time, optimal):
-
     periods, solution_matches, teams = get_elements(solution)
 
     errors = fatal_errors(solution, obj, time, optimal, teams)
@@ -61,14 +60,14 @@ def check_solution(solution: list, obj, time, optimal):
 
         n = max(teams)
 
-        teams_matches = combinations(set(teams),2)
+        teams_matches = combinations(set(teams), 2)
 
         # every team plays with every other teams only once
-        if any([solution_matches.count([h,a]) + solution_matches.count([a,h]) > 1 for h,a in teams_matches]):
+        if any([solution_matches.count([h, a]) + solution_matches.count([a, h]) > 1 for h, a in teams_matches]):
             errors.append('There are duplicated matches')
 
         # each team cannot play against itself
-        if any([h==a for h,a in solution_matches]):
+        if any([h == a for h, a in solution_matches]):
             errors.append('There are self-playing teams')
 
         weeks = get_weeks(periods, n)
@@ -117,4 +116,5 @@ if __name__ == '__main__':
             message = check_solution(sol, obj, time, opt)
             status = "VALID" if type(message) == str else "INVALID"
             message_str = '\n\t  '.join(message)
-            print(f"  Approach: {approach}\n    Status: {status}\n    Reason: {message if status == 'VALID' else message_str}\n")
+            print(
+                f"  Approach: {approach}\n    Status: {status}\n    Reason: {message if status == 'VALID' else message_str}\n")
