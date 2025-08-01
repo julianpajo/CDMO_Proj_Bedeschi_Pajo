@@ -32,6 +32,8 @@ def run_model(results_dict, n, solver, sb, hf, opt):
 
         time, optimal, solution, obj = utils.process_result(result, opt)
 
+        print("Solution found: \n", utils.print_solution(solution))
+
         results_dict[key] = {
             "sol": solution,
             "time": time,
@@ -51,9 +53,20 @@ def run_model(results_dict, n, solver, sb, hf, opt):
     return results_dict
 
 
+def run_single_instance(n, solver, use_sb=False, use_heuristics=False, use_optimization=False):
+    output_dir = DEFAULT_CP_OUTPUT_DIR
+    os.makedirs(output_dir, exist_ok=True)
+
+    results_dict = {}
+
+    results_dict = run_model(results_dict, n, solver, use_sb, use_heuristics, use_optimization)
+
+    utils.write_solution(output_dir, n, results_dict)
+
+
 def run_all():
     solvers = ["gecode", "chuffed"]
-    instances = [6, 8, 10, 12, 14]
+    instances = [6]
     output_dir = DEFAULT_CP_OUTPUT_DIR
     os.makedirs(output_dir, exist_ok=True)
 
@@ -63,42 +76,7 @@ def run_all():
         for solver in solvers:
             for sb in [False, True]:
                 for hf in [False, True]:
-                    # for opt in [False, True]:
                     opt = False
                     results_dict = run_model(results_dict, n, solver, sb, hf, opt)
 
         utils.write_solution(output_dir, n, results_dict)
-
-
-def run_single_instance(n, solver, use_sb=False, use_heuristics=False, use_optimization=False):
-    output_dir = DEFAULT_CP_OUTPUT_DIR
-    os.makedirs(output_dir, exist_ok=True)
-
-    results_dict = {}
-
-    key = utils.make_key(solver, use_sb, use_heuristics, use_optimization)
-    try:
-        print(f"Running {key} for n={n}...")
-        result = cp_solver(n_instances=n, solver=solver,
-                           use_sb=use_sb, use_heuristics=use_heuristics,
-                           use_optimization=use_optimization)
-
-        time, optimal, solution, obj = utils.process_result(result, use_optimization)
-
-        results_dict[key] = {
-            "sol": solution,
-            "time": time,
-            "optimal": optimal,
-            "obj": obj
-        }
-
-    except Exception as e:
-        print(f"Error in {key} for n={n}: {e}")
-        results_dict[key] = {
-            "sol": [],
-            "time": 300,
-            "optimal": False,
-            "obj": None
-        }
-
-    utils.write_solution(output_dir, n, results_dict)

@@ -1,0 +1,8 @@
+services:
+  cdmo-models:
+    build: .
+    volumes:
+      - ./res:/app/res
+    working_dir: /app
+    stdin_open: true
+    tty: true

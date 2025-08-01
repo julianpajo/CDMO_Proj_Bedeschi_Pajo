@@ -3,6 +3,26 @@ import json
 import math
 
 
+def print_solution(solution) -> str:
+    if not solution:
+        return "No solution"
+
+    num_periods = len(solution)
+    num_weeks = len(solution[0])
+
+    output = []
+    header = ["Period \\ Week"] + [str(w + 1) for w in range(num_weeks)]
+    output.append("{:<15}".format(header[0]) + "".join(f"{w:<10}" for w in header[1:]))
+
+    for p in range(num_periods):
+        row = [f"{p + 1:<15}"]
+        for w in range(num_weeks):
+            row.append(f"{str(solution[p][w]):<10}")
+        output.append("".join(row))
+
+    return "\n".join(output)
+
+
 def parse_solution(solution):
     weeks = len(solution.home)
     periods = len(solution.home[0])
