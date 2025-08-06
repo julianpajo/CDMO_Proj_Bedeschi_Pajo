@@ -33,4 +33,4 @@ def build_model(path, use_sb=False, use_heuristics=False, use_optimization=False
     else:
         model.add_string("solve satisfy;")
 
-    return model, {"sb": use_sb}
+    return model, {"sb": use_sb, "hf": use_heuristics, "opt": use_optimization}

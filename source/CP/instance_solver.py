@@ -15,7 +15,6 @@ def solve_instance(num_teams, solver, model, extra_params):
         if value:
             name_parts.append(str(key))
 
-    result = instance.solve(timeout=datetime.timedelta(minutes=5),
-                            optimisation_level=5, free_search=True)
+    result = instance.solve(timeout=datetime.timedelta(minutes=5), free_search=not extra_params.get("hf", False))
 
     return result
