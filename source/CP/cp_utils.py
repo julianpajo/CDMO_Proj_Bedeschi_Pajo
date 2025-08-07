@@ -24,6 +24,9 @@ def print_solution(solution) -> str:
 
 
 def parse_solution(solution):
+    if solution is None:
+        return []
+
     weeks = len(solution.home)
     periods = len(solution.home[0])
 

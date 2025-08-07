@@ -15,9 +15,7 @@ def build_model(path, use_sb=False, use_heuristics=False, use_optimization=False
 
         if use_heuristics:
             model.add_string("""
-            solve :: int_search(vars, dom_w_deg, indomain_random)
-                  :: restart_luby(250)
-                  :: relax_and_reconstruct(vars,85)
+            solve :: int_search(vars, first_fail, indomain_min)
                   minimize max_imbalance;
             """)
         else:
@@ -25,9 +23,7 @@ def build_model(path, use_sb=False, use_heuristics=False, use_optimization=False
 
     elif use_heuristics:
         model.add_string("""
-        solve :: int_search(vars, dom_w_deg, indomain_random)
-              :: restart_luby(250)
-              :: relax_and_reconstruct(vars,85)
+        solve :: int_search(vars, first_fail, indomain_min)
               satisfy;
         """)
     else:
