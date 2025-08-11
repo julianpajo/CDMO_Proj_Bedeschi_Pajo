@@ -1,11 +1,12 @@
 import argparse
 from source.CP import cp_model
+from source.SAT import sat_model
 
 
 def run_all_models():
     models = {
         "cp": cp_model,
-        # "sat": sat_model,
+        "sat": sat_model,
         # "smt": smt_model,
         # "mip": mip_model,
     }
@@ -42,6 +43,11 @@ def main():
                 use_sb=args.sb,
                 use_heuristics=args.hf,
                 use_optimization=args.opt
+            )
+        elif args.model == "sat":
+            sat_model.run_single_instance(
+                num_teams=args.teams,
+                use_sb=args.sb
             )
         else:
             print(f"Single run for model '{args.model}' not implemented yet.")
