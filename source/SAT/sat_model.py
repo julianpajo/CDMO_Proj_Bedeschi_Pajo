@@ -2,6 +2,7 @@ import time, json, math, os
 from z3 import *
 from source.SAT.constraints import *
 
+
 # ---------------------------------------------------------------------
 # Parameters setup
 # ---------------------------------------------------------------------

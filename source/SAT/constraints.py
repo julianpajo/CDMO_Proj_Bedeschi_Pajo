@@ -2,10 +2,7 @@ from z3 import *
 from itertools import combinations
 
 
-## ------- CARDINALITY CONSTRAINTS ------- 
-
-
-## PAIRWISE ENCODING
+## --------- PAIRWISE ENCODING ---------
 
 def at_least_one_np(bool_vars):
   return Or(bool_vars)
