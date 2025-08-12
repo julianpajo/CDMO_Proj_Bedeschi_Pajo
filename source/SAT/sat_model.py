@@ -1,6 +1,6 @@
 import time, json, math, os
 from z3 import *
-from constraints import *
+from source.SAT.constraints import *
 
 # ---------------------------------------------------------------------
 # Parameters setup
@@ -83,8 +83,7 @@ def print_schedule(sol):
     print("[")
     for period in sol:
         print("  [", end="")
-        for match in period:
-            print(f"[{match[0]}, {match[1]}] , ", end="")
+        print(", ".join(f"[{match[0]}, {match[1]}]" for match in period), end="")
         print("]")
     print("]")
 
@@ -92,11 +91,11 @@ def print_schedule(sol):
 # ---------------------------------------------------------------------
 # Solving Routine
 # ---------------------------------------------------------------------
-def run_single_instance(num_teams, use_sb=False):
+def run_single_instance(num_teams, use_sb=False, single=True):
     
     # Get the parameters
     num_teams, num_weeks, num_periods = get_params(num_teams)
-    print(f"\n{'-'*60}\n[INFO] Solving SAT for {num_teams} teams\n{'-'*60}")
+    print(f"{'-'*60}\nRunning SAT instance with {num_teams} teams, sb = {use_sb}\n{'-'*60}")
 
     Teams = list(range(num_teams))
     Weeks = list(range(num_weeks))
@@ -107,6 +106,9 @@ def run_single_instance(num_teams, use_sb=False):
 
     # Create the Z3 solver
     s = Solver()
+
+    # Set a timeout: 300 seconds (in millisecond)
+    s.set("timeout", 300_000)
     
     # ---------------------- ADD CONSTRAINTS ----------------------
     constraint_diff_teams_in_a_match(H,A,Teams,Weeks,Periods,s)
@@ -123,34 +125,50 @@ def run_single_instance(num_teams, use_sb=False):
 
 
     # Solve
-    print("[INFO] Start solving...")
+    print("Start solving...")
     start_time = time.time()
     res = s.check()
     end_time = time.time()
     elapsed = end_time - start_time
-    print(f"[INFO] Solver result: {res} in {elapsed:.2f} seconds")
     
     
     model = s.model() if res == sat else None    
     result = build_result(elapsed, res, model, H, A, Teams, Weeks, Periods)
 
-    # Stampa soluzione su terminale se ottimale
-    if result["optimal"] and result["sol"] is not None:
-        print("\n[INFO] Schedule found:")
+    # Print solution
+    if result["optimal"]:
+        print(f"Solver result: sat in {elapsed:.2f} seconds")
+        print("\nSchedule found:")
         print_schedule(result["sol"])
     else:
-        print("\n[WARN] No valid schedule found or solver timed out.")
+        print("\nNo valid schedule found or solver timed out.")
     
-    # Salva il risultato su file JSON
-    output_dir = os.path.join(os.path.dirname(__file__), "../../..", "res", "SAT")
-    out_path = os.path.join(output_dir, f"{num_teams}.json")
-    with open(out_path, "w") as f:
-        json.dump(result, f, indent=2)
+    # Save
+    if single:
+        output_dir = os.path.join(os.path.dirname(__file__), "../..", "res", "SAT")
+        os.makedirs(output_dir, exist_ok=True)
+        out_path = os.path.join(output_dir, f"{num_teams}.json")
+
+        with open(out_path, "w") as f:
+            json.dump({ "z3_sb" if use_sb else "z3_nosb": result }, f, indent=2)
+    
 
     return result
 
 
 def run_all():
-    for num_teams in [6, 8, 10, 12, 14]:
-        for sb in [False, True]:
-            run_single_instance(num_teams, use_sb=sb)
+    output_dir = os.path.join(os.path.dirname(__file__), "../..", "res", "SAT")
+    os.makedirs(output_dir, exist_ok=True)
+
+    n_list = [6, 8, 10, 12, 14]
+
+    for num_teams in n_list:
+        results = {}
+        for sb in [True, False]:
+            key = f"z3_sb" if sb else "z3_nosb"
+            results[key] = run_single_instance(num_teams, sb, single=False)
+
+        
+        out_path = os.path.join(output_dir, f"{num_teams}.json")
+        with open(out_path, "w") as f:
+            json.dump(results, f, indent=2)

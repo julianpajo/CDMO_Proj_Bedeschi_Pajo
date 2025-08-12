@@ -2,14 +2,19 @@ from z3 import *
 from itertools import combinations
 
 
-def at_least_one(bool_vars):
+## ------- CARDINALITY CONSTRAINTS ------- 
+
+
+## PAIRWISE ENCODING
+
+def at_least_one_np(bool_vars):
   return Or(bool_vars)
 
-def at_most_one(bool_vars):
+def at_most_one_np(bool_vars):
   return And([Not(And(a, b)) for a, b in combinations(bool_vars, 2)])
 
-def exactly_one(bool_vars):
-  return And(at_most_one(bool_vars), at_least_one(bool_vars))
+def exactly_one_np(bool_vars):
+  return And(at_most_one_np(bool_vars), at_least_one_np(bool_vars))
 
 
 def at_most_k_np(bool_vars, k):
@@ -40,7 +45,7 @@ def constraint_only_once_in_a_week(H,A,Teams,Weeks,Periods,s):
     for w in Weeks:
         for t in Teams:
             occurrence = [H[w][p][t] for p in Periods] + [A[w][p][t] for p in Periods]
-            s.add(exactly_one(occurrence))
+            s.add(exactly_one_np(occurrence))
 
 
 # (3) Each team plays at most twice in the same period
@@ -64,7 +69,7 @@ def constraint_only_once_each_match(H,A,Teams,Weeks,Periods,s):
                         # let's save all occurences where t2 plays home and t1 away
                         occurrences.append(And(H[w][p][t2], A[w][p][t1]))
 
-                s.add(exactly_one(occurrences))
+                s.add(exactly_one_np(occurrences))
 
 
 # (5) Exactly one match per slot
@@ -73,8 +78,8 @@ def constraint_one_match_per_slot(H, A, Teams, Weeks, Periods, s):
         for p in Periods:
             home_vars = [H[w][p][t] for t in Teams]
             away_vars = [A[w][p][t] for t in Teams]
-            s.add(exactly_one(home_vars))
-            s.add(exactly_one(away_vars))
+            s.add(exactly_one_np(home_vars))
+            s.add(exactly_one_np(away_vars))
 
                 
 
