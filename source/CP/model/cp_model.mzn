@@ -1,70 +1,90 @@
-% ---------- INCLUDES ----------
+include "all_different.mzn";
 
-include "globals.mzn";
-
-
-% ---------- Instance Parameters ----------
-
-int: teams;
-int: weeks = teams - 1;
-int: periods = teams div 2;
+% ----------
+% PARAMETERS
+% ----------
 
 bool: sb;
+int: teams; % even number
+set of int: TEAMS = 1..teams;
 
-set of int: Teams = 1..teams;
-set of int: Weeks = 1..weeks;
-set of int: Periods = 1..periods;
+int: weeks = teams - 1;
+set of int: WEEKS = 1..weeks;
 
-% ---------- VARIABLES ----------
+int: periods = teams div 2;
+set of int: PERIODS = 1..periods;
 
-array[Weeks, Periods] of var Teams: home;
-array[Weeks, Periods] of var Teams: away;
+% ------------------
+% DECISION VARIABLES
+% ------------------
 
-array[1..weeks*periods] of var Teams: flat_home = [home[w,p] | w in Weeks, p in Periods];
-array[1..weeks*periods] of var Teams: flat_away = [away[w,p] | w in Weeks, p in Periods];
+% Opponent matrix: O[i,j] = opponent of team i in week j
+array[TEAMS, WEEKS] of var TEAMS: O;
 
-array[1..2*weeks*periods] of var Teams: vars = flat_home ++ flat_away;
+% Place matrix: P[i,j] = 1 if home, 0 if away
+array[TEAMS, WEEKS] of var 0..1: P;
 
-
-% ---------- CONSTRAINTS ----------
-
-% (1) Teams in a match must be different
-constraint forall(w in Weeks, p in Periods)(home[w, p] != away[w, p]);
-
-
-% (2) Each team plays exactly once per week
-constraint forall(w in Weeks)(
-    alldifferent([home[w,p] | p in Periods] ++ [away[w,p] | p in Periods])
-);
+% Period assignment: per[i,j] = period where team i plays in week j
+array[TEAMS, WEEKS] of var PERIODS: per;
 
 
-% (3) Each team plays at most twice in the same period
-constraint forall(t in Teams, p in Periods)(
-    sum([bool2int(home[w,p] = t \/ away[w,p] = t) | w in Weeks]) <= 2
-);
+% -----------
+% CONSTRAINTS
+% -----------
 
-
-% (4) Each match {t1, t2} occurs exactly once
+% (1) Each team plays all others exactly once;
 constraint
-  forall(t1, t2 in Teams where t1 < t2)(
-    sum([bool2int((home[w,p] = t1 /\ away[w,p] = t2) \/ 
-                  (home[w,p] = t2 /\ away[w,p] = t1)) 
-         | w in Weeks, p in Periods]) = 1
-  );
-
-
-
-% ---------- SYMMETRY BREAKING CONSTRAINTS ----------
-
-% (SB1) Fix the first week as consecutive pairs: [1,2], [3,4], [5,6], etc.
-constraint sb ->
-    forall(p in Periods)(
-        home[1, p] = 2*p - 1 /\
-        away[1, p] = 2*p
+    forall(i in TEAMS) (
+        all_different([O[i,j] | j in WEEKS]) /\
+        forall(j in WEEKS) (O[i,j] != i)
     );
 
-% (SB2) Team indices ordered: home < away (to avoid duplicate {i,j} and {j,i})
-constraint sb ->
-    forall(w in Weeks, p in Periods)(
-        home[w, p] < away[w, p]
+% (2) Every team plays once a week;
+constraint
+    forall(i in TEAMS, j in WEEKS) (
+        O[O[i,j], j] = i /\
+        P[i,j] + P[O[i,j], j] = 1
     );
+
+% (3) Every team plays at most twice in the same period over the tournament;
+constraint
+    forall(i in TEAMS, p in PERIODS) (
+        count([per[i,j] | j in WEEKS], p) <= 2
+    );
+
+% (4) Period consistency;
+constraint
+    forall(i in TEAMS, j in WEEKS) (
+        per[O[i,j], j] = per[i,j]
+    );
+
+% (5) In every week, each period has exactly two teams playing (one match);
+constraint
+    forall(j in WEEKS, p in PERIODS) (
+        count([per[t,j] == p | t in TEAMS], true) = 2
+    );
+
+% -----------------
+% SYMMETRY BREAKING
+% -----------------
+
+% (SB1) Fixes first match of team 1 at home.
+constraint sb -> P[1,1] = 1;
+
+% (SB2) Fixes opponent order for team 1 to break week/opponent symmetries.
+constraint sb -> forall(j in WEEKS) (O[1,j] = j+1);
+
+% ---------------------
+% OPTIMIZATION FUNCTION
+% ---------------------
+
+array[TEAMS] of var 0..weeks: num_home =
+    [ sum([ bool2int(P[t,w] = 1) | w in WEEKS ]) | t in TEAMS ];
+
+array[TEAMS] of var 0..weeks: num_away =
+    [ sum([ bool2int(P[t,w] = 0) | w in WEEKS ]) | t in TEAMS ];
+
+array[TEAMS] of var 0..weeks: imbalances =
+    [ abs(num_home[t] - num_away[t]) | t in TEAMS ];
+
+var 0..weeks: max_imbalance = max(imbalances);

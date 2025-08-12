@@ -2,29 +2,41 @@ from minizinc import Model
 
 
 def build_model(path, use_sb=False, use_heuristics=False, use_optimization=False):
+    """
+    Builds dinamically a MiniZinc model from the given path with specified options.
+
+    Params:
+        path: The path to the MiniZinc model file.
+        use_sb: Boolean indicating if symmetry breaking is used.
+        use_heuristics: Boolean indicating if heuristics are used.
+        use_optimization: Boolean indicating if optimization is used.
+    Returns:
+        A tuple containing:
+            - model: A MiniZinc Model object.
+            - extra_params: A dictionary with additional parameters for the instance.
+    """
+
     model = Model()
     model.add_file(path)
 
     if use_optimization:
-        model.add_string("""
-        array[Teams] of var 0..weeks: num_home = [sum([bool2int(home[w,p] = t) | w in Weeks, p in Periods]) | t in Teams];
-        array[Teams] of var 0..weeks: num_away = [sum([bool2int(away[w,p] = t) | w in Weeks, p in Periods]) | t in Teams];
-        array[Teams] of var int: imbalances = [abs(num_home[t] - num_away[t]) | t in Teams];
-        var int: max_imbalance = max(imbalances);
-        """)
-
         if use_heuristics:
             model.add_string("""
-            solve :: int_search(vars, first_fail, indomain_min)
-                  minimize max_imbalance;
-            """)
+                    solve :: seq_search([
+                        int_search([O[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min, complete),
+                        int_search([P[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min, complete),
+                        int_search([per[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min, complete)
+                    ]) minimize max_imbalance;
+                """)
         else:
             model.add_string("solve minimize max_imbalance;")
-
     elif use_heuristics:
         model.add_string("""
-        solve :: int_search(vars, first_fail, indomain_min)
-              satisfy;
+        solve :: seq_search([
+            int_search([O[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min, complete),
+            int_search([P[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min, complete),
+            int_search([per[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min, complete)
+        ]) satisfy;
         """)
     else:
         model.add_string("solve satisfy;")

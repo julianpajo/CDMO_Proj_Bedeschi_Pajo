@@ -13,6 +13,18 @@ DEFAULT_CP_OUTPUT_DIR = pt.join(current_dir, 'res/CP')
 
 
 def cp_solver(n_instances, solver, use_sb=False, use_heuristics=False, use_optimization=False):
+    """
+    Solves the CP model using the specified solver and parameters.
+    Params:
+        n_instances: Number of instances to solve
+        solver: The solver to use (e.g., "gecode")
+        use_sb: Whether to use symmetry breaking
+        use_heuristics: Whether to use heuristics
+        use_optimization: Whether to use optimization techniques
+    Returns:
+        result: The result of the solver
+    """
+
     solver_instance = Solver.lookup(solver)
     path = DEFAULT_CP_MODEL_FILE
 
@@ -23,6 +35,18 @@ def cp_solver(n_instances, solver, use_sb=False, use_heuristics=False, use_optim
 
 
 def run_model(results_dict, n, solver, sb, hf, opt):
+    """
+    Runs the CP model with the given parameters and updates the results dictionary.
+    
+    Params:
+        results_dict: Dictionary to store results
+        n: Number of teams (instances)
+        solver: The solver to use (e.g., "gecode")
+        sb: Whether to use symmetry breaking
+        hf: Whether to use heuristics
+        opt: Whether to use optimization techniques
+    """
+
     key = utils.make_key(solver, sb, hf, opt)
     try:
         print(f"Running {key} for n={n}...")
@@ -54,6 +78,17 @@ def run_model(results_dict, n, solver, sb, hf, opt):
 
 
 def run_single_instance(n, solver, use_sb=False, use_heuristics=False, use_optimization=False):
+    """
+    Runs a single instance of the CP model with the given parameters.
+
+    Params:
+        n: Number of teams (instances)
+        solver: The solver to use (e.g., "gecode")
+        use_sb: Whether to use symmetry breaking
+        use_heuristics: Whether to use heuristics
+        use_optimization: Whether to use optimization techniques
+    """
+
     output_dir = DEFAULT_CP_OUTPUT_DIR
     os.makedirs(output_dir, exist_ok=True)
 
@@ -65,8 +100,12 @@ def run_single_instance(n, solver, use_sb=False, use_heuristics=False, use_optim
 
 
 def run_all():
+    """
+    Runs all configurations for the CP model.
+    """
+
     solvers = ["gecode", "chuffed"]
-    instances = [6, 8, 10, 12, 14]
+    instances = [6, 8, 10, 12, 14, 16]
     output_dir = DEFAULT_CP_OUTPUT_DIR
     os.makedirs(output_dir, exist_ok=True)
 
