@@ -3,7 +3,6 @@ from source.CP.build_model import build_model
 from minizinc import Solver
 from source.CP import cp_utils as utils
 import os
-import math
 import os.path as pt
 
 current_dir = os.getcwd()

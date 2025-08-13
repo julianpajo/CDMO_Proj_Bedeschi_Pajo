@@ -85,7 +85,13 @@ def make_key(solver, sb, hf, opt):
         A string key representing the solver configuration.
     """
 
-    parts = [solver, "cp", "sb" if sb else "nosb", "hf" if hf else "nohf", "opt" if opt else "noopt"]
+    parts = [
+        solver,
+        "sb" if sb else "nosb",
+        "hf" if hf else "nohf",
+        "opt" if opt else "noopt"
+    ]
+
     return "_".join(parts)
 
 

@@ -1,6 +1,7 @@
 import argparse
 from source.CP import cp_model
 from source.SAT import sat_model
+from source.MIP import mip_model
 
 
 def run_all_models():
@@ -8,7 +9,7 @@ def run_all_models():
         "cp": cp_model,
         "sat": sat_model,
         # "smt": smt_model,
-        # "mip": mip_model,
+        "mip": mip_model
     }
 
     for model_name, model in models.items():
@@ -48,6 +49,13 @@ def main():
             sat_model.run_single_instance(
                 num_teams=args.teams,
                 use_sb=args.sb
+            )
+        elif args.model == "mip":
+            mip_model.run_single_instance(
+                n=args.teams,
+                solver=args.solver,
+                use_sb=args.sb,
+                use_optimization=args.opt
             )
         else:
             print(f"Single run for model '{args.model}' not implemented yet.")

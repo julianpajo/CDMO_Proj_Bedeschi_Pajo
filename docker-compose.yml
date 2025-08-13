@@ -6,3 +6,7 @@ services:
     working_dir: /app
     stdin_open: true
     tty: true
+    env_file:
+      - .env
+    environment:
+      - AMPL_LICENSE_UUID=${AMPL_LICENSE_UUID}
