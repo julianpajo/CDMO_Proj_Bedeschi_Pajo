@@ -127,6 +127,7 @@ def process_result(ampl, solution, elapsed_time, use_optimization):
     has_solution = True
     if solution is None or any(cell is None for row in solution for cell in row):
         has_solution = False
+        solution = []
 
     obj = None
     is_optimal = False

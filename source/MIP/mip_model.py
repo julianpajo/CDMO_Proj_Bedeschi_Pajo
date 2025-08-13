@@ -152,7 +152,7 @@ def run_all():
     """
 
     solvers = ["gurobi", "cplex"]
-    instances = [16]
+    instances = [6, 8, 10, 12, 14, 16]
     output_dir = DEFAULT_MIP_OUTPUT_DIR
     os.makedirs(output_dir, exist_ok=True)
 
