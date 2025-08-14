@@ -1,10 +1,11 @@
 include "all_different.mzn";
 
-% ----------
+% ==========
 % PARAMETERS
-% ----------
+% ==========
 
 bool: sb;
+
 int: teams; % even number
 set of int: TEAMS = 1..teams;
 
@@ -14,9 +15,9 @@ set of int: WEEKS = 1..weeks;
 int: periods = teams div 2;
 set of int: PERIODS = 1..periods;
 
-% ------------------
+% ==================
 % DECISION VARIABLES
-% ------------------
+% ==================
 
 % Opponent matrix: O[i,j] = opponent of team i in week j
 array[TEAMS, WEEKS] of var TEAMS: O;
@@ -28,45 +29,73 @@ array[TEAMS, WEEKS] of var 0..1: P;
 array[TEAMS, WEEKS] of var PERIODS: per;
 
 
-% -----------
-% CONSTRAINTS
-% -----------
+% ================
+% HARD CONSTRAINTS
+% ================
 
-% (1) Each team plays all others exactly once;
+% (1) Each team plays all others exactly once
 constraint
     forall(i in TEAMS) (
-        all_different([O[i,j] | j in WEEKS]) /\
-        forall(j in WEEKS) (O[i,j] != i)
+        all_different([O[i,j] | j in WEEKS])
     );
 
-% (2) Every team plays once a week;
+% (2) Every team plays once per week
+constraint
+    forall(j in WEEKS) (
+        all_different([O[t,j] | t in TEAMS])
+    );
+
+% (3) Every team plays at most twice in the same period
+% Each period can appear 0, 1 or 2 times for a given team
+constraint
+    forall(i in TEAMS) (
+        global_cardinality(
+            [per[i,j] | j in WEEKS],   % variables to count
+            PERIODS,                   % possible values
+            [0 | p in PERIODS],        % lower bound (0 each)
+            [2 | p in PERIODS]         % upper bound (2 each)
+        )
+    );
+
+
+% ===================
+% IMPLIED CONSTRAINTS
+% ===================
+
+% (4) No self-matches
+constraint
+    forall(i in TEAMS, j in WEEKS) (
+        O[i,j] != i
+    );
+
+% (5) Symmetry of matches
 constraint
     forall(i in TEAMS, j in WEEKS) (
         O[O[i,j], j] = i /\
         P[i,j] + P[O[i,j], j] = 1
     );
 
-% (3) Every team plays at most twice in the same period over the tournament;
-constraint
-    forall(i in TEAMS, p in PERIODS) (
-        count([per[i,j] | j in WEEKS], p) <= 2
-    );
-
-% (4) Period consistency;
+% (6) Period consistency
+% If i plays k in week j, they share the same period
 constraint
     forall(i in TEAMS, j in WEEKS) (
         per[O[i,j], j] = per[i,j]
     );
 
-% (5) In every week, each period has exactly two teams playing (one match);
+% (7) Two teams per period each week
 constraint
-    forall(j in WEEKS, p in PERIODS) (
-        count([per[t,j] == p | t in TEAMS], true) = 2
+    forall(j in WEEKS) (
+        global_cardinality(
+            [per[t,j] | t in TEAMS],
+            PERIODS,
+            [2 | p in PERIODS],
+            [2 | p in PERIODS]
+        )
     );
 
-% -----------------
-% SYMMETRY BREAKING
-% -----------------
+% =============================
+% SYMMETRY BREAKING CONSTRAINTS
+% =============================
 
 % (SB1) Fixes first match of team 1 at home.
 constraint sb -> P[1,1] = 1;
@@ -74,9 +103,9 @@ constraint sb -> P[1,1] = 1;
 % (SB2) Fixes opponent order for team 1 to break week/opponent symmetries.
 constraint sb -> forall(j in WEEKS) (O[1,j] = j+1);
 
-% ---------------------
+% =====================
 % OPTIMIZATION FUNCTION
-% ---------------------
+% =====================
 
 array[TEAMS] of var 0..weeks: num_home =
     [ sum([ bool2int(P[t,w] = 1) | w in WEEKS ]) | t in TEAMS ];
