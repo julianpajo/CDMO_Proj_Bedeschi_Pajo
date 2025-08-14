@@ -2,57 +2,83 @@ import os
 import json
 
 
-def parse_solution(ampl, X_name_or_dict, W, P, n):
+def parse_solution(ampl, variables_dict, W, P, n):
     """
     Parses the solution from the AMPL model.
-
     Params:
-        ampl: The amplpy. AMPL object after solving.
-        X_name_or_dict: Either a string with the variable name or a dictionary with variable values.
+        ampl: The amplpy.AMPL object after solving.
+        variables_dict: Dictionary containing the parsed variables (y_dict, A_dict, H_dict)
+                       or a single variable name/dict for backward compatibility.
         W: Number of weeks.
         P: Number of periods.
         n: Number of teams.
-
     Returns:
         A list of lists representing the schedule for each period.
     """
 
-    if isinstance(X_name_or_dict, dict):
-        X_raw = {tuple(int(x) for x in k): float(v) for k, v in X_name_or_dict.items()}
-    else:
-        X_name = X_name_or_dict
-        var = ampl.get_variable(X_name)
-        df = var.get_values().to_pandas()
-        X_raw = {}
-        if not df.empty:
-            val_col = df.columns[-1]
-            idx_cols = df.columns[:-1]
-            for _, row in df.iterrows():
-                indices = tuple(int(row[c]) for c in idx_cols)
-                val = float(row[val_col])
-                X_raw[indices] = val
+    if isinstance(variables_dict, (str, dict)) and not isinstance(variables_dict, dict) or \
+            (isinstance(variables_dict, dict) and not any(key in variables_dict for key in ['A_dict', 'H_dict'])):
+        if isinstance(variables_dict, dict):
+            X_raw = {tuple(int(x) for x in k): float(v) for k, v in variables_dict.items()}
+        else:
+            X_name = variables_dict
+            var = ampl.get_variable(X_name)
+            df = var.get_values().to_pandas()
+            X_raw = {}
+            if not df.empty:
+                val_col = df.columns[-1]
+                idx_cols = df.columns[:-1]
+                for _, row in df.iterrows():
+                    indices = tuple(int(row[c]) for c in idx_cols)
+                    val = float(row[val_col])
+                    X_raw[indices] = val
 
-    X_active = {k: v for k, v in X_raw.items() if float(v) > 0.5}
+        X_active = {k: v for k, v in X_raw.items() if float(v) > 0.5}
+
+        schedule_weeks = []
+        for w in range(1, W + 1):
+            week_matches = []
+            for p in range(1, P + 1):
+                found = None
+                for h in range(1, n + 1):
+                    if found:
+                        break
+                    for a in range(1, n + 1):
+                        if h == a:
+                            continue
+                        if X_active.get((h, a, w, p), 0) != 0:
+                            found = [h, a]
+                            break
+                week_matches.append(found)
+            schedule_weeks.append(week_matches)
+
+        schedule_periods = [[schedule_weeks[w_idx][p_idx] for w_idx in range(W)] for p_idx in range(P)]
+        return schedule_periods
+
+    A_dict = variables_dict.get('A_dict', {})
+    H_dict = variables_dict.get('H_dict', {})
+
+    A_active = {k: v for k, v in A_dict.items() if float(v) > 0.5}
+    H_active = {k: v for k, v in H_dict.items() if float(v) > 0.5}
 
     schedule_weeks = []
     for w in range(1, W + 1):
         week_matches = []
         for p in range(1, P + 1):
             found = None
-            for h in range(1, n + 1):
-                if found:
+            for (i, k, week, period), val in A_active.items():
+                if week == w and period == p:
+                    if (i, k, w) in H_active:
+                        found = [i, k]
+                    elif (k, i, w) in H_active:
+                        found = [k, i]
+                    else:
+                        found = [i, k]
                     break
-                for a in range(1, n + 1):
-                    if h == a:
-                        continue
-                    if X_active.get((h, a, w, p), 0) != 0:
-                        found = [h, a]
-                        break
             week_matches.append(found)
         schedule_weeks.append(week_matches)
 
     schedule_periods = [[schedule_weeks[w_idx][p_idx] for w_idx in range(W)] for p_idx in range(P)]
-
     return schedule_periods
 
 

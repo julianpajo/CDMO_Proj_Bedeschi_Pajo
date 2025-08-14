@@ -49,14 +49,12 @@ def mip_solver(n, solver, use_sb=False, use_optimization=False):
 def run_model(results_dict, n, solver, use_sb=False, use_optimization=False):
     """
     Runs the MIP model with the given parameters and updates the results dictionary.
-
     Params:
         results_dict: Dictionary to store results
         n: Number of teams (instances)
         solver: The solver to use (e.g., "gurobi", "cplex")
         use_sb: Whether to use symmetry breaking
         use_optimization: Whether to use optimization techniques
-
     Returns:
         results_dict: Updated dictionary with results for the given configuration
     """
@@ -68,39 +66,103 @@ def run_model(results_dict, n, solver, use_sb=False, use_optimization=False):
         ampl = mip_solver(n, solver, use_sb, use_optimization)
         elapsed_time = time.time() - start
 
-        X_var = ampl.getVariable('X')
-        X_dict = {}
+        y_var = ampl.getVariable('y')
+        A_var = ampl.getVariable('A')
+        H_var = ampl.getVariable('H')
+
+        y_dict = {}
+        A_dict = {}
+        H_dict = {}
 
         try:
-            ampf = X_var.getValues()
-            df = ampf.to_pandas()
-            if not df.empty:
-                val_col = df.columns[-1]
-                idx_cols = df.columns[:-1]
-                for _, row in df.iterrows():
-                    indices = tuple(int(row[c]) if str(row[c]).isdigit() else row[c] for c in idx_cols)
-                    val = float(row[val_col])
-                    if val > 0.5:
-                        X_dict[indices] = int(round(val))
+            try:
+                y_values = y_var.getValues()
+                df_y = y_values.to_pandas()
+                if not df_y.empty:
+                    val_col = df_y.columns[-1]
+                    idx_cols = df_y.columns[:-1]
+                    for _, row in df_y.iterrows():
+                        indices = tuple(int(row[c]) if str(row[c]).isdigit() else row[c] for c in idx_cols)
+                        val = float(row[val_col])
+                        if val > 0.5:
+                            y_dict[indices] = int(round(val))
+            except Exception:
+                TEAMS = range(1, n + 1)
+                WEEKS = range(1, n)
+                for i in TEAMS:
+                    for k in TEAMS:
+                        if i < k:  # only non-oriented pairs
+                            for w in WEEKS:
+                                try:
+                                    val = float(ampl.getValue(f"y[{i},{k},{w}]"))
+                                    if val > 0.5:
+                                        y_dict[(i, k, w)] = int(round(val))
+                                except Exception:
+                                    pass
+
+            try:
+                A_values = A_var.getValues()
+                df_A = A_values.to_pandas()
+                if not df_A.empty:
+                    val_col = df_A.columns[-1]
+                    idx_cols = df_A.columns[:-1]
+                    for _, row in df_A.iterrows():
+                        indices = tuple(int(row[c]) if str(row[c]).isdigit() else row[c] for c in idx_cols)
+                        val = float(row[val_col])
+                        if val > 0.5:
+                            A_dict[indices] = int(round(val))
+            except Exception:
+                TEAMS = range(1, n + 1)
+                WEEKS = range(1, n)
+                PERIODS = range(1, n // 2 + 1)
+                for i in TEAMS:
+                    for k in TEAMS:
+                        if i < k:  # only non-oriented pairs
+                            for w in WEEKS:
+                                for p in PERIODS:
+                                    try:
+                                        val = float(ampl.getValue(f"A[{i},{k},{w},{p}]"))
+                                        if val > 0.5:
+                                            A_dict[(i, k, w, p)] = int(round(val))
+                                    except Exception:
+                                        pass
+
+            try:
+                H_values = H_var.getValues()
+                df_H = H_values.to_pandas()
+                if not df_H.empty:
+                    val_col = df_H.columns[-1]
+                    idx_cols = df_H.columns[:-1]
+                    for _, row in df_H.iterrows():
+                        indices = tuple(int(row[c]) if str(row[c]).isdigit() else row[c] for c in idx_cols)
+                        val = float(row[val_col])
+                        if val > 0.5:
+                            H_dict[indices] = int(round(val))
+            except Exception:
+                TEAMS = range(1, n + 1)
+                WEEKS = range(1, n)
+                for h in TEAMS:
+                    for a in TEAMS:
+                        if h != a:
+                            for w in WEEKS:
+                                try:
+                                    val = float(ampl.getValue(f"H[{h},{a},{w}]"))
+                                    if val > 0.5:
+                                        H_dict[(h, a, w)] = int(round(val))
+                                except Exception:
+                                    pass
+
         except Exception:
-            TEAMS = range(1, n + 1)
-            WEEKS = range(1, n)
-            PERIODS = range(1, n // 2 + 1)
-            for h in TEAMS:
-                for a in TEAMS:
-                    if h == a:
-                        continue
-                    for w in WEEKS:
-                        for p in PERIODS:
-                            try:
-                                val = float(ampl.getValue(f"X[{h},{a},{w},{p}]"))
-                                if val > 0.5:
-                                    X_dict[(h, a, w, p)] = int(round(val))
-                            except Exception:
-                                pass
+            print("Error processing variables, using fallback methods...")
 
         W, P = n - 1, n // 2
-        solution = utils.parse_solution(ampl, X_dict, W, P, n)
+
+        variables_dict = {
+            'A_dict': A_dict,
+            'H_dict': H_dict,
+            'y_dict': y_dict
+        }
+        solution = utils.parse_solution(ampl, variables_dict, W, P, n)
 
         print("Solution found:")
         print(utils.print_solution(solution))
@@ -165,4 +227,3 @@ def run_all():
                     results_dict = run_model(results_dict, n, solver, sb, opt)
 
         utils.write_solution(output_dir, n, results_dict)
-
