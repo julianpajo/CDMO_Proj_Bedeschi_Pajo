@@ -3,6 +3,9 @@ from z3 import *
 from z3 import Solver, unsat, unknown, sat
 from source.SAT.constraints import *
 
+current_dir = os.getcwd()
+DEFAULT_SAT_OUTPUT_DIR = os.path.join(current_dir, 'res/SAT')
+
 
 # ---------------------------------------------------------------------
 #                         Parameters setup
@@ -145,7 +148,9 @@ def run_single_instance(num_teams, use_sb=False, single=True):
 
     # ------------------------ SAVE SOLUTION ----------------------
     if single:
-        output_dir = os.path.join(os.path.dirname(__file__), "../../res/SAT")
+        output_dir = os.path.abspath(DEFAULT_SAT_OUTPUT_DIR)
+        os.makedirs(output_dir, exist_ok=True)
+        
         out_path = os.path.join(output_dir, f"{num_teams}.json")
 
         key = "z3_sb" if use_sb else "z3_nosb"
@@ -157,8 +162,8 @@ def run_single_instance(num_teams, use_sb=False, single=True):
 
 
 def run_all():
-    output_dir = os.path.join(os.path.dirname(__file__), "../../res/SAT")
-    output_dir = os.path.abspath(output_dir)
+    output_dir = os.path.abspath(DEFAULT_SAT_OUTPUT_DIR)
+    os.makedirs(output_dir, exist_ok=True)
 
     n_list = [6, 8, 10, 12, 14, 16]
 
