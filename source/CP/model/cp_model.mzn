@@ -84,7 +84,7 @@ array[TEAMS] of var 0..weeks: num_home =
 array[TEAMS] of var 0..weeks: num_away =
     [ sum([ bool2int(P[t,w] = 0) | w in WEEKS ]) | t in TEAMS ];
 
-array[TEAMS] of var 0..weeks: imbalances =
+array[TEAMS] of var 1..weeks: imbalances =
     [ abs(num_home[t] - num_away[t]) | t in TEAMS ];
 
-var 0..weeks: max_imbalance = max(imbalances);
+var 1..weeks: max_imbalance = max(imbalances);
