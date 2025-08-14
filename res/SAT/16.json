@@ -1,0 +1,14 @@
+{
+  "z3_sb": {
+    "time": 300,
+    "optimal": false,
+    "obj": null,
+    "sol": null
+  },
+  "z3_nosb": {
+    "time": 300,
+    "optimal": false,
+    "obj": null,
+    "sol": null
+  }
+}
