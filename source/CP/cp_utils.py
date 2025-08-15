@@ -4,22 +4,25 @@ import math
 from minizinc import Status
 
 
-def print_solution(solution) -> str:
+def print_solution(time, optimal, solution, obj):
     """
-    Formats the solution for printing.
+    Prints the solution in a formatted way.
+
     Params:
-        solution: A list of lists where each sublist represents a period and contains the matchups for that period.
-    Returns:
-        A formatted string representing the solution.
+        time: The time taken for the solution in seconds.
+        optimal: Boolean indicating if the solution is optimal.
+        solution: A list of lists representing the matchups for each period.
+        obj: The objective value if available, otherwise None.
     """
 
     if not solution:
-        return "No solution"
+        print("\nNo solution found.")
 
     num_periods = len(solution)
     num_weeks = len(solution[0])
 
-    output = []
+    output = [f"\nSolution found:\n"]
+
     header = ["Period \\ Week"] + [str(w + 1) for w in range(num_weeks)]
     output.append("{:<15}".format(header[0]) + "".join(f"{w:<10}" for w in header[1:]))
 
@@ -29,7 +32,11 @@ def print_solution(solution) -> str:
             row.append(f"{str(solution[p][w]):<10}")
         output.append("".join(row))
 
-    return "\n".join(output)
+    output.append(f"\nTime taken: {time} seconds")
+    output.append(f"Optimal: {'Yes' if optimal else 'No'}")
+    output.append(f"Objective value: {obj if obj is not None else 'N/A'}")
+
+    print("\n".join(output) + "\n")
 
 
 def parse_solution(solution):
@@ -40,7 +47,7 @@ def parse_solution(solution):
     Returns:
         A list of lists representing the matchups for each period, or an empty list if no solution is found.
     """
-    
+
     if solution is None:
         return []
 
@@ -153,11 +160,10 @@ def write_solution(output_dir, n, results_dict):
             f.write(f'  "{key}": {{\n')
 
             sol_str = json.dumps(val["sol"], separators=(',', ':'))
-            f.write(f'    "sol": {sol_str},\n')
-
             f.write(f'    "time": {val["time"]},\n')
             f.write(f'    "optimal": {"true" if val["optimal"] else "false"},\n')
-            f.write(f'    "obj": {json.dumps(val["obj"])}\n')
+            f.write(f'    "obj": {json.dumps(val["obj"])},\n')
+            f.write(f'    "sol": {sol_str}\n')
 
             f.write('  }' + (',' if i < len(results_dict) - 1 else '') + '\n')
         f.write('}\n')

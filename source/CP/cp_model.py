@@ -48,14 +48,22 @@ def run_model(results_dict, n, solver, sb, hf, opt):
 
     key = utils.make_key(solver, sb, hf, opt)
     try:
-        print(f"Running {key} for n={n}...")
+        print(
+            f"\nRunning CP instance with"
+            f"\n  - {n} teams"
+            f"\n  - solver = {solver}"
+            f"\n  - symmetry breaking = {sb}"
+            f"\n  - heuristics = {hf}"
+            f"\n  - optimization = {opt}"
+        )
+
         result = cp_solver(n_instances=n, solver=solver,
                            use_sb=sb, use_heuristics=hf,
                            use_optimization=opt)
 
         time, optimal, solution, obj = utils.process_result(result, opt)
 
-        print("Solution found: \n", utils.print_solution(solution))
+        utils.print_solution(time, optimal, solution, obj)
 
         results_dict[key] = {
             "sol": solution,

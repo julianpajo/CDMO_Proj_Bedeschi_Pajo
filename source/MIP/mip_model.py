@@ -49,6 +49,7 @@ def mip_solver(n, solver, use_sb=False, use_optimization=False):
 def run_model(results_dict, n, solver, use_sb=False, use_optimization=False):
     """
     Runs the MIP model with the given parameters and updates the results dictionary.
+
     Params:
         results_dict: Dictionary to store results
         n: Number of teams (instances)
@@ -61,7 +62,14 @@ def run_model(results_dict, n, solver, use_sb=False, use_optimization=False):
 
     key = utils.make_key(solver, use_sb, use_optimization)
     try:
-        print(f"Running {key} for n={n}...")
+        print(
+            f"\nRunning MIP instance with"
+            f"\n  - {n} teams"
+            f"\n  - solver = {solver}"
+            f"\n  - symmetry breaking = {use_sb}"
+            f"\n  - optimization = {use_optimization}"
+        )
+
         start = time.time()
         ampl = mip_solver(n, solver, use_sb, use_optimization)
         elapsed_time = time.time() - start
@@ -164,12 +172,11 @@ def run_model(results_dict, n, solver, use_sb=False, use_optimization=False):
         }
         solution = utils.parse_solution(ampl, variables_dict, W, P, n)
 
-        print("Solution found:")
-        print(utils.print_solution(solution))
-
         time_val, optimal, solution, obj = utils.process_result(
             ampl, solution, elapsed_time, use_optimization
         )
+
+        utils.print_solution(time_val, optimal, solution, obj)
 
         results_dict[key] = {
             "sol": solution,
