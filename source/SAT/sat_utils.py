@@ -119,17 +119,15 @@ def write_solution(output_dir, n, results_dict):
             
             # Format solution array
             sol_str = json.dumps(val["sol"], separators=(',', ':'))
-            f.write(f'    "sol": {sol_str},\n')
-            
-            # Add time and optimal fields
+
             f.write(f'    "time": {val["time"]},\n')
             f.write(f'    "optimal": {"true" if val["optimal"] else "false"}')
-            
-            # Handle optional 'obj' (not present in SAT by default)
             if "obj" in val:
-                f.write(f',\n    "obj": {json.dumps(val["obj"])}\n')
+                f.write(f',\n    "obj": {json.dumps(val["obj"])},\n')
             else:
-                f.write('\n')
+                f.write(',\n')
+            f.write(f'    "sol": {sol_str}\n')
+            
             
             f.write('  }' + (',' if i < len(results_dict) - 1 else '') + '\n')
         f.write('}\n')

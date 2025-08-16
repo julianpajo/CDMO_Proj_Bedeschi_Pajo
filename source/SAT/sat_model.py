@@ -70,7 +70,7 @@ def run_model_sat(n, results_dict, solver="z3", use_sb=False, use_optimization=F
     key = utils.make_key(solver, use_sb, use_optimization)
 
     try:
-        print(f"Running {key} for n={n} (SAT)...")
+        print(f"\nRunning {key} for n={n} (SAT)...")
 
         start_time = time.time()
         model, M, Weeks, Periods = sat_solver(n, use_sb, use_optimization)
