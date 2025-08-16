@@ -47,15 +47,17 @@ def main():
             )
         elif args.model == "sat":
             sat_model.run_single_instance(
-                num_teams=args.teams,
-                use_sb=args.sb
+                n=args.teams, 
+                solver="z3", 
+                use_sb=args.sb, 
+                use_optimization=args.opt
             )
         elif args.model == "mip":
             mip_model.run_single_instance(
                 n=args.teams,
                 solver=args.solver,
                 use_sb=args.sb,
-                use_optimization=args.opt
+                 use_optimization=args.opt
             )
         else:
             print(f"Single run for model '{args.model}' not implemented yet.")
