@@ -17,6 +17,7 @@ def print_solution(time, optimal, solution, obj):
 
     if not solution:
         print("\nNo solution found.")
+        return
 
     num_periods = len(solution)
     num_weeks = len(solution[0])

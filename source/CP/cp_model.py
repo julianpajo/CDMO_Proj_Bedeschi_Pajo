@@ -112,7 +112,7 @@ def run_all():
     """
 
     solvers = ["gecode", "chuffed"]
-    instances = [6, 8, 10, 12, 14]
+    instances = [6, 8, 10, 12, 14, 16]
     output_dir = DEFAULT_CP_OUTPUT_DIR
     os.makedirs(output_dir, exist_ok=True)
 

@@ -118,6 +118,7 @@ def print_solution(time, optimal, solution, obj):
 
     if solution is None or any(cell is None for row in solution for cell in row):
         print("\nNo solution found.")
+        return
 
     num_periods = len(solution)
     num_weeks = len(solution[0])
