@@ -81,22 +81,32 @@ def parse_solution(solution):
     return result
 
 
-def make_key(solver, sb, hf, opt):
+def make_key(solver, sb, heuristic, opt):
     """
     Creates a unique key for the solver configuration.
     Params:
         solver: The name of the solver.
-        sb: Boolean indicating if superblock is used.
-        hf: Boolean indicating if home/away format is used.
+        sb: Boolean indicating if symmetry breaking is used.
+        heuristic: Integer indicating which heuristic is used
+                   (1=base, 2=dom/wdeg, 3=+restarts, 4=+LNS).
         opt: Boolean indicating if optimization is used.
     Returns:
         A string key representing the solver configuration.
     """
 
+    heuristic_map = {
+        1: "base",
+        2: "dom",
+        3: "luby",
+        4: "lns"
+    }
+
+    heuristic_key = heuristic_map.get(heuristic, f"h{heuristic}")
+
     parts = [
         solver,
         "sb" if sb else "nosb",
-        "hf" if hf else "nohf",
+        heuristic_key,
         "opt" if opt else "noopt"
     ]
 

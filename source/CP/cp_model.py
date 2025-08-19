@@ -11,14 +11,14 @@ DEFAULT_CP_MODEL_FILE = pt.join(current_dir, 'source/CP/model/cp_model.mzn')
 DEFAULT_CP_OUTPUT_DIR = pt.join(current_dir, 'res/CP')
 
 
-def cp_solver(n_instances, solver, use_sb=False, use_heuristics=False, use_optimization=False):
+def cp_solver(n_instances, solver, use_sb=False, hf=False, use_optimization=False):
     """
     Solves the CP model using the specified solver and parameters.
     Params:
         n_instances: Number of instances to solve
         solver: The solver to use (e.g., "gecode")
         use_sb: Whether to use symmetry breaking
-        use_heuristics: Whether to use heuristics
+        hf: Heuristic function to use (1-4)
         use_optimization: Whether to use optimization techniques
     Returns:
         result: The result of the solver
@@ -27,7 +27,7 @@ def cp_solver(n_instances, solver, use_sb=False, use_heuristics=False, use_optim
     solver_instance = Solver.lookup(solver)
     path = DEFAULT_CP_MODEL_FILE
 
-    model, extra_params = build_model(path, use_sb, use_heuristics, use_optimization)
+    model, extra_params = build_model(path, use_sb, hf, use_optimization)
 
     result = solve_instance(n_instances, solver_instance, model, extra_params)
     return result
@@ -47,18 +47,26 @@ def run_model(results_dict, n, solver, sb, hf, opt):
     """
 
     key = utils.make_key(solver, sb, hf, opt)
+
+    heuristic_map = {
+        1: "base",
+        2: "dom/wdeg + random value",
+        3: "luby",
+        4: "lns"
+    }
+
     try:
         print(
             f"\nRunning CP instance with"
             f"\n  - {n} teams"
             f"\n  - solver = {solver}"
             f"\n  - symmetry breaking = {sb}"
-            f"\n  - heuristics = {hf}"
+            f"\n  - search strategy = {heuristic_map.get(hf, f'h{hf}')}"
             f"\n  - optimization = {opt}"
         )
 
         result = cp_solver(n_instances=n, solver=solver,
-                           use_sb=sb, use_heuristics=hf,
+                           use_sb=sb, hf=hf,
                            use_optimization=opt)
 
         time, optimal, solution, obj = utils.process_result(result, opt)
@@ -121,7 +129,8 @@ def run_all():
 
         for solver in solvers:
             for sb in [False, True]:
-                for hf in [False, True]:
+                for hf in [1, 2, 3, 4]:  # heuristic options ( 1: "base", 2: "dom/wdeg + random value", 3: "luby",
+                    # 4: "lns" )
                     for opt in [False, True]:
                         results_dict = run_model(results_dict, n, solver, sb, hf, opt)
 

@@ -4,7 +4,7 @@ from source.SAT import sat_model
 from source.MIP import mip_model
 
 
-def run_all_models():
+def run_all_models(selected_model=None):
     models = {
         "cp": cp_model,
         "sat": sat_model,
@@ -12,30 +12,39 @@ def run_all_models():
         "mip": mip_model
     }
 
-    for model_name, model in models.items():
-        print(f"Running all configurations for model: {model_name}")
-        model.run_all()
+    if selected_model:
+        if selected_model in models:
+            print(f"Running all configurations for model: {selected_model}")
+            models[selected_model].run_all()
+        else:
+            print(f"Model '{selected_model}' not implemented.")
+    else:
+        for model_name, model in models.items():
+            print(f"Running all configurations for model: {model_name}")
+            model.run_all()
 
 
 def main():
     parser = argparse.ArgumentParser()
     mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--all", action="store_true", help="Run all configurations for all models")
+    mode.add_argument("--all", action="store_true",
+                      help="Run all configurations for all models (or one model if --model is given)")
     mode.add_argument("--single", action="store_true", help="Run a single configuration")
 
     parser.add_argument("--teams", type=int, default=6, help="Number of teams (for --single)")
     parser.add_argument("--sb", action="store_true", help="Enable symmetry breaking")
-    parser.add_argument("--hf", action="store_true", help="Enable heuristics")
+    parser.add_argument("--hf", action="store_true", default=1, help="Search strategy to use")
     parser.add_argument("--opt", action="store_true", help="Enable optimization")
     parser.add_argument("--solver", type=str, default="gecode", help="MiniZinc solver to use")
 
-    parser.add_argument("--model", type=str, choices=["cp", "sat", "smt", "mip"], default="cp",
-                        help="Which model to run (only relevant with --single)")
+    parser.add_argument("--model", type=str, choices=["cp", "sat", "smt", "mip"],
+                        help="Which model to run")
 
     args = parser.parse_args()
 
     if args.all:
-        run_all_models()
+        run_all_models(selected_model=args.model)
+
     elif args.single:
         if args.model == "cp":
             cp_model.run_single_instance(
@@ -47,9 +56,9 @@ def main():
             )
         elif args.model == "sat":
             sat_model.run_single_instance(
-                n=args.teams, 
-                solver="z3", 
-                use_sb=args.sb, 
+                n=args.teams,
+                solver="z3",
+                use_sb=args.sb,
                 use_optimization=args.opt
             )
         elif args.model == "mip":
@@ -57,7 +66,7 @@ def main():
                 n=args.teams,
                 solver=args.solver,
                 use_sb=args.sb,
-                 use_optimization=args.opt
+                use_optimization=args.opt
             )
         else:
             print(f"Single run for model '{args.model}' not implemented yet.")
