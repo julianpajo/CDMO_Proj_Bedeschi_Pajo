@@ -20,4 +20,4 @@ RUN pip install --no-cache-dir --break-system-packages -r requirements.txt
 RUN python -m amplpy.modules install base --no-cache-dir \
  && python -m amplpy.modules install cplex gurobi --no-cache-dir || true
 
-ENTRYPOINT ["python", "run_models.py"]
+ENTRYPOINT ["python", "entrypoint.py"]
