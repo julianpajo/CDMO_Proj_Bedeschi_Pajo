@@ -33,7 +33,9 @@ def main():
 
     parser.add_argument("--teams", type=int, default=6, help="Number of teams (for --single)")
     parser.add_argument("--sb", action="store_true", help="Enable symmetry breaking")
-    parser.add_argument("--hf", action="store_true", default=1, help="Search strategy to use")
+    parser.add_argument("--hf", type=int, choices=[1, 2, 3, 4], default=1,
+                        help="Search strategy to use: "
+                             "1=default, 2=dom/wdeg, 3=dom/wdeg+restarts, 4=dom/wdeg+restarts+LNS")
     parser.add_argument("--opt", action="store_true", help="Enable optimization")
     parser.add_argument("--solver", type=str, default="gecode", help="MiniZinc solver to use")
 
