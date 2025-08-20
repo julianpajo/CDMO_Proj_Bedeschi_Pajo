@@ -116,7 +116,7 @@ def print_solution(time, optimal, solution, obj):
         obj: The objective value if available, otherwise None.
     """
 
-    if solution is None or any(cell is None for row in solution for cell in row):
+    if solution is None or len(solution) == 0:
         print("\nNo solution found.")
         return
 

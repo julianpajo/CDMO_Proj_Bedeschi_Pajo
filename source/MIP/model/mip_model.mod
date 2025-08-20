@@ -13,7 +13,7 @@ set WEEKS := 1..W;
 set PERIODS := 1..P;
 
 # Set of unordered team pairs (i < k)
-set EDGES := {i in TEAMS, k in TEAMS: i < k};
+set MATCHES := {i in TEAMS, k in TEAMS: i < k};
 
 
 # =========================
@@ -40,7 +40,7 @@ var max_imbalance integer >= 0 <= W;
 # =========================
 
 # (1) Every team plays with every other team only once
-s.t. PairOnce {(i,k) in EDGES}:
+s.t. PairOnce {(i,k) in MATCHES}:
     sum {w in WEEKS} y[i,k,w] = 1;
 
 # (2) Every team plays once a week
@@ -61,16 +61,22 @@ s.t. MaxTwoPerPeriod {t in TEAMS, p in PERIODS}:
 # IMPLIED CONSTRAINTS
 # =========================
 
-# (IC1) Every match scheduled in week w is assigned to exactly one period
-s.t. AssignOnePeriod {(i,k) in EDGES, w in WEEKS}:
+# (IC1) Period consistency:
+# If a match (i,k) is scheduled in week w, it must be assigned
+# to exactly one period in that week (and none otherwise).
+s.t. PeriodConsistency {(i,k) in MATCHES, w in WEEKS}:
     sum {p in PERIODS} A[i,k,w,p] = y[i,k,w];
 
-# (IC2) Each week and period hosts exactly one match
+# (IC2) Two teams per period (one match per slot):
+# Each period in each week hosts exactly one match,
+# hence exactly two teams.
 s.t. OneMatchPerSlot {w in WEEKS, p in PERIODS}:
-    sum {(i,k) in EDGES} A[i,k,w,p] = 1;
+    sum {(i,k) in MATCHES} A[i,k,w,p] = 1;
 
-# (IC3) Home/away orientation must match the scheduled match
-s.t. HA_link {(i,k) in EDGES, w in WEEKS}:
+# (IC3) Symmetry of matches (home/away orientation):
+# If match (i,k) is played in week w, exactly one of the two
+# orientations (i home, k away) or (k home, i away) must hold.
+s.t. HomeAwaySymmetry {(i,k) in MATCHES, w in WEEKS}:
     H[i,k,w] + H[k,i,w] = y[i,k,w];
 
 
