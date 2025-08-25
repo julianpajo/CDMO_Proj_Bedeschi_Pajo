@@ -50,9 +50,9 @@ def run_model(results_dict, n, solver, sb, hf, opt):
 
     heuristic_map = {
         1: "base",
-        2: "dom/wdeg + random value",
-        3: "luby",
-        4: "lns"
+        2: "dom/wdeg + indomain_min",
+        3: "dom/wdeg + indomain_min + luby",
+        4: "dom/wdeg + indomain_min + luby + lns"
     }
 
     try:
@@ -129,8 +129,7 @@ def run_all():
 
         for solver in solvers:
             for sb in [False, True]:
-                for hf in [1, 2, 3, 4]:  # heuristic options ( 1: "base", 2: "dom/wdeg + random value", 3: "luby",
-                    # 4: "lns" )
+                for hf in [1, 2, 3, 4]:  # Heuristic functions
                     for opt in [False, True]:
                         results_dict = run_model(results_dict, n, solver, sb, hf, opt)
 
