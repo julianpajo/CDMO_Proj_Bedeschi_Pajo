@@ -30,15 +30,14 @@ def main():
     mode.add_argument("--all", action="store_true",
                       help="Run all configurations for all models (or one model if --model is given)")
     mode.add_argument("--single", action="store_true", help="Run a single configuration")
-
     parser.add_argument("--teams", type=int, default=6, help="Number of teams (for --single)")
     parser.add_argument("--sb", action="store_true", help="Enable symmetry breaking")
     parser.add_argument("--hf", type=int, choices=[1, 2, 3, 4], default=1,
                         help="Search strategy to use: "
-                             "1=default, 2=dom/wdeg, 3=dom/wdeg+restarts, 4=dom/wdeg+restarts+LNS")
+                             "1=default, 2=dom/wdeg, 3=dom/wdeg+luby, 4=dom/wdeg+luby+LNS")
     parser.add_argument("--opt", action="store_true", help="Enable optimization")
-    parser.add_argument("--solver", type=str, default="gecode", help="MiniZinc solver to use")
-
+    parser.add_argument("--solver", type=str, choices=["gecode", "chuffed", "gurobi", "cplex"],
+                        help="Solver to use (CP: gecode, chuffed | MIP: gurobi, cplex)")
     parser.add_argument("--model", type=str, choices=["cp", "sat", "smt", "mip"],
                         help="Which model to run")
 
