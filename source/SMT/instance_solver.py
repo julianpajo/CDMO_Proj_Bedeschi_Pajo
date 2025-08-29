@@ -9,13 +9,14 @@ def solve_instance(n_teams, solver_name, use_sb=False, use_optimization=False, m
 
     if use_optimization:
 
-        model, variables, max_diff, elapsed, is_optimal = optimize_home_away_difference(n_teams, use_sb, 300)
+        model, home, per, max_diff, elapsed, is_optimal = optimize_home_away_difference(n_teams, use_sb, 300)
 
         return {
             "status": sat if model else unsat,
             "time": elapsed,
             "model": model,
-            "variables": variables,
+            "home": home, 
+            "per": per,
             "weeks": list(range(n_teams - 1)),
             "periods": list(range(n_teams // 2)),
             "extra_params": {
@@ -30,7 +31,7 @@ def solve_instance(n_teams, solver_name, use_sb=False, use_optimization=False, m
     
     else:
         # Regular solving path
-        solver, y, weeks, periods, extra_params = build_model(n_teams, use_sb, False)
+        solver, home, per, weeks, periods, extra_params = build_model(n_teams, use_sb, False)
         
         # Solve the model
         status = solver.check()
@@ -41,7 +42,8 @@ def solve_instance(n_teams, solver_name, use_sb=False, use_optimization=False, m
             "status": status,
             "time": elapsed_time,
             "stats": solver.statistics(),
-            "variables": y,
+            "home": home, 
+            "per": per,
             "weeks": weeks,
             "periods": periods,
             "extra_params": {
@@ -66,16 +68,15 @@ def optimize_home_away_difference(n_teams, use_sb=False, timeout=300):
     start_time = time.time()
     
     # Build base SMT model
-    solver, y, Weeks, Periods, extra_params = build_model(n_teams, use_sb, True)
+    solver, home, per, Weeks, Periods, extra_params = build_model(n_teams, use_sb, True)
     Teams = list(range(n_teams))
     
-    # Create the max_imbalance expression once
-    max_imbalance = smt_model.max_imbalance(y, Teams, Weeks, Periods)
+    # Create the max_imbalance variable and add constraints
+    max_imb_var = smt_model.max_imbalance(home, Teams, Weeks, solver)  # Passa il solver
     
     # Binary search bounds
     lower_bound, upper_bound = 1, n_teams - 1
     best_model, best_max_diff = None, upper_bound
-    
     
     # Push the base state
     solver.push()
@@ -83,12 +84,12 @@ def optimize_home_away_difference(n_teams, use_sb=False, timeout=300):
     # Binary search
     while lower_bound <= upper_bound and (time.time() - start_time) < timeout:
         mid = (lower_bound + upper_bound) // 2
-        print(f"Testing max_imbalance <= {mid}")
+        print(f"Testing max_imbalance: {mid}")
         
         # Remove previous constraint and add new one
         solver.pop()
         solver.push()
-        solver.add(max_imbalance <= mid)
+        solver.add(max_imb_var <= mid)
         
         if solver.check() == sat:
             best_model = solver.model()
@@ -106,15 +107,26 @@ def optimize_home_away_difference(n_teams, use_sb=False, timeout=300):
         # Calculate actual imbalance from the model
         imbalances = []
         for t in Teams:
-            home = sum(1 for w in Weeks for p in Periods 
-                      if best_model.evaluate(y[w][p][0]).as_long() == t)
-            away = sum(1 for w in Weeks for p in Periods 
-                      if best_model.evaluate(y[w][p][1]).as_long() == t)
-            imbalances.append(abs(home - away))
+            home_games = 0
+            away_games = 0
+            for w in Weeks:
+                # Evaluate it correctly
+                home_val = best_model.evaluate(home[(t, w)])
+                if home_val.is_int() and home_val.as_long() != -1:
+                    home_games += 1
+                
+                for j in Teams:
+                    if j != t:
+                        away_val = best_model.evaluate(home[(j, w)])
+                        if away_val.is_int() and away_val.as_long() == t:
+                            away_games += 1
+                            break
+            
+            imbalances.append(abs(home_games - away_games))
         
-        actual_max = max(imbalances)
+        actual_max = max(imbalances) if imbalances else 0
         is_optimal = (actual_max == 1)
         
-        return best_model, y, actual_max, elapsed, is_optimal
+        return best_model, home, per, actual_max, elapsed, is_optimal
     
-    return None, None, n_teams - 1, elapsed, False
+    return None, None, None, n_teams - 1, elapsed, False

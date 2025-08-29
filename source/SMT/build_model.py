@@ -27,32 +27,21 @@ def build_model(n_teams, use_sb=False, use_optimization=False):
     Periods = list(range(num_periods))
     
     # Create SMT variables 
-    y = smt_model.create_variables(Teams, Weeks, Periods)  
+    home, per = smt_model.create_variables(Teams, Weeks, Periods)  
     
     # Add constraints
-    smt_model.add_hard_constraints(y, Teams, Weeks, Periods, solver) 
-    smt_model.add_implied_constraints(y, Teams, Weeks, Periods, solver)
+    smt_model.add_hard_constraints(home, per, Teams, Weeks, Periods, solver)
+    smt_model.add_channelling_constraint(home, per, Teams, Weeks, Periods, solver)
+    smt_model.add_implied_constraints(home, per, Teams, Weeks, Periods, solver)
     
     if use_sb:
-        smt_model.add_symmetry_breaking_constraints(y, Teams, Weeks, Periods, solver, use_optimization) 
+        smt_model.add_symmetry_breaking_constraints(home, per, Teams, Weeks, solver, use_optimization)
     
     extra_params = {
         "sb": use_sb,
         "opt": use_optimization,
         "teams_list": Teams,  
         "teams": n_teams,
-    }
-
-    """
-    if use_optimization:
-        max_imbalance = smt_model.max_imbalance(y, Teams, Weeks, Periods)
-        solver.minimize(max_imbalance)
-        extra_params["max_imbalance"] = max_imbalance
-
-        # upper bound
-        upper_bound = num_teams // 2
-        solver.add(max_imbalance <= upper_bound)
-    """
+    }   
     
-    
-    return solver, y, Weeks, Periods, extra_params  
+    return solver, home, per, Weeks, Periods, extra_params  

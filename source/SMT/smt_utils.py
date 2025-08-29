@@ -42,58 +42,54 @@ def print_solution(time, optimal, solution, obj):
 
 def parse_solution(result):
     """
-    Parses the solution from a SMT model with integer variables.
-
     Params:
-        result: a dictionary
-        result = {
-            "status": status,
-            "time": elapsed_time,
-            "stats": solver.statistics(),
-            "variables": y,  # Variabili intere SMT
-            "weeks": weeks,
-            "periods": periods,
-            "extra_params": extra_params
-            "model": solver.model() for Z3
-        }
+        result: dict come restituito da solve_instance
+            {
+                "status": status,
+                "time": elapsed_time,
+                "home": home,
+                "per": per,
+                "weeks": weeks,
+                "periods": periods,
+                "extra_params": extra_params,
+                "model": solver.model()
+            }
 
     Returns:
-        A list of lists representing the schedule for each period.
-        schedule_periods[p][w] = [home_team, away_team]
+        schedule_periods[p][w] = [home_team, away_team]  (team index 1-based)
     """
 
-    if result["status"] != sat:
+    if result["status"] != sat or "model" not in result:
         return []
-    
-    if "model" in result:
-        model = result["model"]
-        y = result["variables"]
-        Weeks = result["weeks"]
-        Periods = result["periods"]
 
-        weekly = [[None for _ in Periods] for _ in Weeks]
+    model = result["model"]
+    home = result["home"]
+    per = result["per"]
+    Weeks = result["weeks"]
+    Periods = result["periods"]
+    Teams = result["extra_params"]["teams_list"]
 
-        for w in Weeks:
-            for p in Periods:
-                # Read directly team values
-                home_team = model.evaluate(y[w][p][0])
-                away_team = model.evaluate(y[w][p][1])
-                
-                # Convert from Z3 Int to Python int
-                try:
-                    # add 1: team numbering 1-based
-                    home_val = home_team.as_long() + 1 
-                    away_val = away_team.as_long() + 1
-                    weekly[w][p] = [home_val, away_val]
-                except:
-                    print(f"[WARN] Invalid match values at Week {w}, Period {p}: {home_team}, {away_team}")
-                    weekly[w][p] = [None, None]
+    # schedule_periods[period][week] = [home, away]
+    schedule_periods = [[None for _ in Weeks] for _ in Periods]
 
-        # Transpose to have [period][week] 
-        schedule_periods = [[weekly[w][p] for w in Weeks] for p in Periods]
-        return schedule_periods
-    
-    return []
+    for w in Weeks:
+        for i in Teams:
+            opp = model.evaluate(home[(i, w)])
+            if not opp.is_int():
+                continue
+            j = opp.as_long()
+            if j == -1 or j == i:
+                continue
+
+            # Evaluate the period
+            period_val = model.evaluate(per[(i, w)]).as_long()
+
+            # Add the match (home = i, away = j)
+            if schedule_periods[period_val][w] is None:
+                schedule_periods[period_val][w] = [i + 1, j + 1]  # +1 per 1-based
+
+    return schedule_periods
+
 
 
 def make_key(solver_name, sb, opt):
@@ -149,7 +145,7 @@ def process_result(result, use_optimization):
     Processes the result from a SAT solver with validation
     """
     elapsed_time = result["time"]
-    solution = parse_solution(result)  # Questa è l'unica che chiama la nuova parse_solution
+    solution = parse_solution(result)
     has_solution = bool(solution)
 
     if use_optimization and has_solution:
