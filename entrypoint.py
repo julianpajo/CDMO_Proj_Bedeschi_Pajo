@@ -37,8 +37,8 @@ def main():
                         help="Search strategy to use: "
                              "1=default, 2=dom/wdeg, 3=dom/wdeg+luby, 4=dom/wdeg+luby+LNS")
     parser.add_argument("--opt", action="store_true", help="Enable optimization")
-    parser.add_argument("--solver", type=str, choices=["gecode", "chuffed", "gurobi", "cplex"],
-                        help="Solver to use (CP: gecode, chuffed | MIP: gurobi, cplex)")
+    parser.add_argument("--solver", type=str, choices=["gecode", "chuffed", "gurobi", "cplex", "z3", "glucose"],
+                        help="Solver to use (CP: gecode, chuffed | MIP: gurobi, cplex | SAT: z3, glucose | SMT: z3)")
     parser.add_argument("--model", type=str, choices=["cp", "sat", "smt", "mip"],
                         help="Which model to run")
 
@@ -59,7 +59,7 @@ def main():
         elif args.model == "sat":
             sat_model.run_single_instance(
                 n=args.teams,
-                solver="z3",
+                solver=args.solver,
                 use_sb=args.sb,
                 use_optimization=args.opt
             )
