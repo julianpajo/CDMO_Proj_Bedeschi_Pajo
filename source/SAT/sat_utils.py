@@ -1,7 +1,8 @@
+from itertools import combinations
+from z3 import *
 import os
 import json
 import math
-from z3 import *
 
 
 def print_solution(time, optimal, solution, obj):
@@ -43,70 +44,60 @@ def print_solution(time, optimal, solution, obj):
 
 def parse_solution(result):
     """
-    Parses the solution from a SAT model.
-
-    Params:
-        result: a dictionary
-        result = {
-            "status": status,
-            "time": elapsed_time,  # building + solving time
-            "stats": solver.statistics(),
-            "variables": variables,
-            "weeks": weeks,
-            "periods": periods,
-            "extra_params": extra_params
-            "model": solver.model() for Z3
-            "solver_output": result.stdout, for dimacs
-            "solver_error": result.stderr for dimacs
-        }
+    Parses the solution from a SAT model (Z3 or DIMACS).
 
     Returns:
-        A list of lists representing the schedule for each period.
         schedule_periods[p][w] = [home_team, away_team]
     """
-
     if result["status"] != sat:
         return []
-    
-    # case Z3
-    if "model" in result:
-        model = result["model"]
-        variables = result["variables"]
-        Weeks = result["weeks"]
-        Periods = result["periods"]
-        Teams = result["extra_params"]["teams_list"]
 
-        weekly = [[None for _ in Periods] for _ in Weeks]
+    Teams = result["extra_params"]["teams_list"]
+    Weeks = result["weeks"]
+    Periods = result["periods"]
+
+    schedule_periods = [[None for _ in Weeks] for _ in Periods]
+
+    # ----- Z3 case -----
+    if "model" in result and result["model"] is not None:
+        model = result["model"]
+        home_vars = result["variables"]["home"]
+        per_vars = result["variables"]["per"]
 
         for w in Weeks:
             for p in Periods:
-                home_team = None
-                away_team = None
-                for t in Teams:
-                    if is_true(model.evaluate(variables[w][p][0][t])):
-                        home_team = t + 1
-                    if is_true(model.evaluate(variables[w][p][1][t])):
-                        away_team = t + 1
+                # Trova le due squadre in questo periodo e settimana
+                teams_in_period = []
+                for i in Teams:
+                    # Verifica che la variabile per esista nel modello
+                    if (i, w, p) in per_vars:
+                        if is_true(model.evaluate(per_vars[(i, w, p)])):
+                            teams_in_period.append(i)
+                
+                if len(teams_in_period) != 2:
+                    continue  # ignora periodi incompleti
 
-                if home_team and away_team:
-                    weekly[w][p] = [home_team, away_team]
+                i, j = teams_in_period
+                # Verifica che le variabili home esistano
+                if (i, j, w) in home_vars and is_true(model.evaluate(home_vars.get((i, j, w), False))):
+                    home_team, away_team = i + 1, j + 1
+                elif (j, i, w) in home_vars and is_true(model.evaluate(home_vars.get((j, i, w), False))):
+                    home_team, away_team = j + 1, i + 1
+                else:
+                    continue  # skip if no home variable found
 
-        # Transpose to have [period][week] 
-        schedule_periods = [[weekly[w][p] for w in Weeks] for p in Periods]
-        return schedule_periods
-    
-        # case dimacs
+                schedule_periods[p][w] = [home_team, away_team]
+
+    # ----- DIMACS case -----
     elif "dimacs_output" in result and "variable_mapping" in result:
         dimacs_output = result["dimacs_output"]
         variable_mapping = result["variable_mapping"]
-        Weeks = result["weeks"]
-        Periods = result["periods"]
 
         if not variable_mapping or "to_var" not in variable_mapping:
             print("[ERROR] variable_mapping missing or invalid")
             return []
 
-        # 1. Parse all variable assignments from DIMACS output
+        # Legge le assegnazioni dal DIMACS
         assignments = {}
         for line in dimacs_output.splitlines():
             line = line.strip()
@@ -121,28 +112,32 @@ def parse_solution(result):
                     lit = int(tok)
                 except ValueError:
                     continue
-                var_id = abs(lit)
-                assignments[var_id] = lit > 0
+                assignments[abs(lit)] = (lit > 0)
 
+        # Ricostruisce schedule usando home/per
+        for p in Periods:
+            for w in Weeks:
+                teams_in_period = []
+                for var_id, info in variable_mapping["to_var"].items():
+                    if info[0] == "period" and info[3] == p and info[2] == w:
+                        if assignments.get(var_id, False):
+                            teams_in_period.append(info[1])
+                if len(teams_in_period) != 2:
+                    continue
+                i, j = teams_in_period
+                home_id = None
+                for var_id, info in variable_mapping["to_var"].items():
+                    if info[0] == "home" and info[1] == i and info[2] == j and info[3] == w:
+                        home_id = var_id
+                        break
+                if home_id and assignments.get(home_id, False):
+                    home_team, away_team = i + 1, j + 1
+                else:
+                    home_team, away_team = j + 1, i + 1
+                schedule_periods[p][w] = [home_team, away_team]
 
-        # 2. Build weekly solution
-        weekly = [[None for _ in Periods] for _ in Weeks]
-        for var_id, info in variable_mapping["to_var"].items():
-            if assignments.get(var_id, False):
-                w, p, s, t, _ = info
-                if weekly[w][p] is None:
-                    weekly[w][p] = [None, None]
-                weekly[w][p][s] = t + 1
+    return schedule_periods
 
-        # 3. Validate matches: no None, no same-team
-        for w in Weeks:
-            for p in Periods:
-                if weekly[w][p] is None or None in weekly[w][p]:
-                    print(f"[WARN] Incomplete match Week {w}, Period {p}: {weekly[w][p]}")
-
-        # 4. Transpose to [period][week]
-        schedule_periods = [[weekly[w][p] for w in Weeks] for p in Periods]
-        return schedule_periods
 
 
 

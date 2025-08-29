@@ -63,13 +63,13 @@ def run_model(results_dict, n, solver, sb=False, opt=False):
 
         result = sat_solver(n, solver, sb, opt)
 
-        time, optimal, solution, obj = utils.process_result(result, opt)
+        elapsed_time, optimal, solution, obj = utils.process_result(result, opt)
 
-        utils.print_solution(time, optimal, solution, obj)
+        utils.print_solution(elapsed_time, optimal, solution, obj)
 
         results_dict[key] = {
             "sol": solution,
-            "time": time,
+            "time": elapsed_time,
             "optimal": optimal,
             "obj": obj
         }

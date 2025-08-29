@@ -10,9 +10,9 @@ def build_model(n_teams, use_sb=False, use_optimization=False, max_diff_constrai
         n_teams: Number of teams
         use_sb: Whether to use symmetry breaking
         use_optimization: Whether to use optimization techniques
-    
+        max_diff_constraint: maximum allowed home-away imbalance (optional)
     Returns:
-        tuple: (solver, variables, weeks, periods, extra_params)
+        tuple: (solver, home, per, weeks, periods, extra_params)
     """
     solver = Solver()
     solver.set("random_seed", 42)
@@ -26,18 +26,20 @@ def build_model(n_teams, use_sb=False, use_optimization=False, max_diff_constrai
     Periods = list(range(num_periods))
     
     # Create variables
-    x = sat_model.create_variables(Teams, Weeks, Periods)
+    home, per = sat_model.create_variables(Teams, Weeks, Periods)
     
     # Add constraints
-    sat_model.add_hard_constraints(x, Teams, Weeks, Periods, solver)
-    sat_model.add_implied_constraints(x, Teams, Weeks, Periods, solver)
     
-    if use_sb:
-        sat_model.add_symmetry_breaking_constraints(x, Teams, Weeks, Periods, solver, use_optimization)
+    sat_model.add_hard_constraints(home, per, Teams, Weeks, Periods, solver)
+    sat_model.add_channelling_constraint(home, per, Teams, Weeks, Periods, solver)
+    sat_model.add_implied_constraints(home, per, Teams, Weeks, Periods, solver)  
 
+    if use_sb:
+        sat_model.add_symmetry_breaking_constraints(home, per, Teams, Weeks, Periods, solver, use_optimization)
+      
 
     if use_optimization and max_diff_constraint is not None:
-        sat_model.add_max_diff_constraint(x, Teams, Weeks, Periods, max_diff_constraint, solver)
+        sat_model.add_max_diff_constraint(home, Teams, Weeks, max_diff_constraint, solver)
 
     
     extra_params = {
@@ -48,4 +50,4 @@ def build_model(n_teams, use_sb=False, use_optimization=False, max_diff_constrai
         "max_diff_constraint": max_diff_constraint
     }
     
-    return solver, x, Weeks, Periods, extra_params
+    return solver, home, per, Weeks, Periods, extra_params

@@ -21,48 +21,26 @@ def get_params(num_teams):
 def create_variables(Teams, Weeks, Periods):
     n = len(Teams)
 
-    # x[w][p][s][t] True if team i is in slot s (0=home, 1=away) of period p in week w
-    x = [[[[Bool(f"x_{w}_{p}_{s}_{t}") for t in Teams] 
-                                       for s in [0, 1]] 
-                                       for p in Periods] 
-                                       for w in Weeks]
+    home = {}   # home[i,j,w] true if i plays at home against j in week w
+    per = {}    # per[i,w,p] true if i plays in week w, period p
+    
+    for i in Teams:
+        for j in Teams:
+            for w in Weeks:
+                home[(i, j, w)] = Bool(f"home_{i}_{j}_{w}")
+    
+    for i in Teams:
+        for w in Weeks:
+            for p in Periods:
+                per[(i, w, p)] = Bool(f"period_{i}_{w}_{p}")
 
-    return x
+
+    return home, per
 
 
 # -----------------------
 # CARDINALITY CONSTRAINTS
 # -----------------------
-
-def at_least_one_np(bool_vars):
-  return Or(bool_vars)
-
-def at_most_one_np(bool_vars):
-  return And([Not(And(a, b)) for a, b in combinations(bool_vars, 2)])
-
-def exactly_one_np(bool_vars):
-  return And(at_least_one_np(bool_vars), at_most_one_np(bool_vars))
-
-def at_least_k_np(bool_vars, k):
-    return at_most_k_np([Not(var) for var in bool_vars], len(bool_vars)-k)
-
-def at_most_k_np(bool_vars, k):
-    return And([Or([Not(x) for x in X]) for X in combinations(bool_vars, k + 1)])
-
-def exactly_k_np(bool_vars, k):
-    return And(at_least_k_np(bool_vars, k), at_most_k_np(bool_vars, k))
-
-
-def exactly_one_np(bool_vars, name):
-  return PbEq([(x,1) for x in bool_vars], 1)
-
-def at_most_k_np(bool_vars, k, name):
-    return PbLe([(x, 1) for x in bool_vars], k) 
-
-def at_least_k_np(bool_vars, k):
-    return PbGe([(var, 1) for var in bool_vars], k)
-
-
 
 def at_least_one(bool_vars):
    return Or(bool_vars)
@@ -83,81 +61,164 @@ def exactly_k(bool_vars, k, name=None):
     return And(at_most_k(bool_vars, k), at_least_k(bool_vars, k))
 
 
+
+def at_most_k_seq(bool_vars, k, name=None):
+    """
+    Sequential counter encoding - O(n*k) auxiliary variables
+    MOLTO più efficiente per k piccolo (2-3) e n medio (100-200)
+    """
+    if k >= len(bool_vars):
+        return True
+    if k <= 0:
+        return And([Not(var) for var in bool_vars])
+    
+    n = len(bool_vars)
+    if n == 0:
+        return True
+    
+    # Create auxiliary variables
+    s = [[Bool(f"{name}_s_{i}_{j}" if name else f"s_{i}_{j}") 
+          for j in range(k)] for i in range(n-1)]
+    
+    constraints = []
+    
+    # First element constraints
+    constraints.append(Or(Not(bool_vars[0]), s[0][0]))
+    for j in range(1, k):
+        constraints.append(Not(s[0][j]))
+    
+    # Middle elements
+    for i in range(1, n-1):
+        constraints.append(Or(Not(bool_vars[i]), s[i][0]))
+        constraints.append(Or(Not(s[i-1][0]), s[i][0]))
+        
+        for j in range(1, k):
+            constraints.append(Or(Not(bool_vars[i]), Not(s[i-1][j-1]), s[i][j]))
+            constraints.append(Or(Not(s[i-1][j]), s[i][j]))
+        
+        constraints.append(Or(Not(bool_vars[i]), Not(s[i-1][k-1])))
+    
+    # Last element constraint
+    constraints.append(Or(Not(bool_vars[n-1]), Not(s[n-2][k-1])))
+    
+    return And(*constraints)
+
+def exactly_k_seq(bool_vars, k, name=None):
+    """Exactly k using sequential counter"""
+    return And(at_most_k_seq(bool_vars, k, name), 
+               at_least_k_seq(bool_vars, k, name))
+
+def at_least_k_seq(bool_vars, k, name=None):
+    """At least k using negation of at_most k-1"""
+    if k <= 0:
+        return True
+    if k > len(bool_vars):
+        return False
+    return Not(at_most_k_seq(bool_vars, k-1, name))
+
+
 # ----------------
 # HARD CONSTRAINTS
 # ----------------
 
 # (1) every team plays with every other team only once
-def constraint_each_pair_once(x, Teams, Weeks, Periods, s):
-    all_matches = {}
-    
-    for w in Weeks:
-        for p in Periods:
-            match_id = f"match_w{w}_p{p}"
-            # Create a variable for each possible match in this slot
-            for t1, t2 in combinations(Teams, 2):
-                match_var = Bool(f"{match_id}_{t1}_{t2}")
-                # Link to actual assignment
-                s.add(match_var == Or(
-                    And(x[w][p][0][t1], x[w][p][1][t2]),
-                    And(x[w][p][0][t2], x[w][p][1][t1])
-                ))
-                if (t1, t2) not in all_matches:
-                    all_matches[(t1, t2)] = []
-                all_matches[(t1, t2)].append(match_var)
-    
-    # Each pair must appear exactly once
-    for (t1, t2), match_vars in all_matches.items():
-        s.add(exactly_one(match_vars, f"pair_{t1}_{t2}"))
+def constraint_each_pair_once(home, Teams, Weeks, s):
+    for i, j in combinations(Teams, 2):
+        s.add(exactly_one([home[(i,j,w)] for w in Weeks] + [home[(j,i,w)] for w in Weeks]))
 
 
 # (2) every team plays once a week
-def constraint_one_match_per_week(x, Teams, Weeks, Periods, s):
-    for t in Teams:
+def constraint_one_match_per_week(home, Teams, Weeks, s):
+    for i in Teams:
         for w in Weeks:
-            week_t = [x[w][p][0][t] for p in Periods] + [x[w][p][1][t] for p in Periods]
-            s.add(exactly_one(week_t, f"team{t}_week{w}"))
+            week_match = [home[(i,j,w)] for j in Teams if i != j] + [home[(j,i,w)] for j in Teams if i != j]
+            s.add(exactly_one(week_match))  
+
 
 # (3) every team plays at most twice in the same period over the tournament
-def constraint_max_two_per_period(x, Teams, Weeks, Periods, s):
+def constraint_max_two_per_period(per, Teams, Weeks, Periods, s):
     for t in Teams:
         for p in Periods:
-            s.add(at_most_k([x[w][p][slot][t] for w in Weeks for slot in [0,1]], 2, f"period{p}_team{t}"))
+            matches_period = [per[(t, w, p)] for w in Weeks]
+            s.add(at_most_k(matches_period, 2))
 
 
-def add_hard_constraints(x, Teams, Weeks, Periods, s):
-    constraint_each_pair_once(x, Teams, Weeks, Periods, s)
-    constraint_one_match_per_week(x, Teams, Weeks, Periods, s)
-    constraint_max_two_per_period(x, Teams, Weeks, Periods, s)
+def add_hard_constraints(home, per, Teams, Weeks, Periods, s):
+    constraint_each_pair_once(home, Teams, Weeks, s)
+    constraint_one_match_per_week(home, Teams, Weeks, s)
+    constraint_max_two_per_period(per, Teams, Weeks, Periods, s)
+
+
+# ----------------------
+# CHANNELLING CONSTRAINT
+# ----------------------
+
+def constraint_period_consistency(home, per, Teams, Weeks, Periods, s):
+    for w in Weeks:
+        for p in Periods:
+            # two teams per match
+            s.add(exactly_k([per[(i,w,p)] for i in Teams], 2))
+        # channelling: if i plays against j in week w, they must be in the same period
+        for i, j in combinations(Teams, 2):
+            match_occurs = Or(home.get((i,j,w), False), home.get((j,i,w), False))
+            same_period = Or([And(per[(i,w,p)], per[(j,w,p)]) for p in Periods])
+            
+            # A -> B becomes Not(A) ∨ B
+            s.add(Or(Not(match_occurs), same_period))
+
+
+def add_channelling_constraint(home, per, Teams, Weeks, Periods, s):
+    constraint_period_consistency(home, per, Teams, Weeks, Periods, s)
+
 
 
 # -------------------
 # IMPLIED CONSTRAINTS
 # -------------------
 
-# (4) one match per slot
-def constraint_one_match_per_slot(x, Teams, Weeks, Periods, s):
-    for p in Periods:
+# No self matches
+def constraint_diff_teams(home, Teams, Weeks, s):
+    for i in Teams:
         for w in Weeks:
-            s.add(exactly_one([x[w][p][0][i] for i in Teams], f"home_week{w}_period{p}"))
-            s.add(exactly_one([x[w][p][1][j] for j in Teams], f"away_week{w}_period{p}"))
-            for t in Teams:
-                # Non same team
-                s.add(Not(And(x[w][p][0][t], x[w][p][1][t])))
+            s.add(Not(home[(i, i, w)]))
 
 
-# (5) two distinct team in a match
-def constraint_diff_teams_per_match(x, Teams, Weeks, Periods, s):
+# Two teams per period
+def constraint_two_teams_period(per, Teams, Weeks, Periods, s):
     for w in Weeks:
         for p in Periods:
-            for t in Teams:
-                s.add(Or(Not(x[w][p][0][t]), Not(x[w][p][1][t])))
+            matches_period = []
+            for i in Teams:
+                if (i, w, p) in per:
+                    matches_period.append(per[(i, w, p)])
+        
+            if matches_period:
+                s.add(exactly_k(matches_period, 2))
 
 
-def add_implied_constraints(x, Teams, Weeks, Periods, s):
-    constraint_diff_teams_per_match(x, Teams, Weeks, Periods, s)
-    constraint_one_match_per_slot(x, Teams, Weeks, Periods, s)
+# home[i,j,w] ==> Not(home[j,i,w])
+def constrain_home_symmetry(home, Teams, Weeks, s):
+    for i in Teams:
+        for j in Teams:
+            if i == j:
+                continue
+            for w in Weeks:
+                # they cannot be both true
+                s.add(Or(Not(home[(i, j, w)]), Not(home[(j, i, w)])))
 
+
+def constraint_one_period_a_week(per, Teams, Weeks, Periods, s):
+    for i in Teams:
+        for w in Weeks:
+            week_periods = [per[(i, w, p)] for p in Periods]
+            s.add(exactly_one(week_periods))
+
+
+def add_implied_constraints(home, per, Teams, Weeks, Periods, s):
+    constraint_diff_teams(home, Teams, Weeks, s)
+    constraint_two_teams_period(per, Teams, Weeks, Periods, s)
+    constrain_home_symmetry(home, Teams, Weeks, s)
+    constraint_one_period_a_week(per, Teams, Weeks, Periods, s)
 
 
 # -----------------------------
@@ -165,92 +226,95 @@ def add_implied_constraints(x, Teams, Weeks, Periods, s):
 # -----------------------------
 
 # (sb1) Fix the first match to be team 0 vs team 1
-def add_sb1(x, s):
-    s.add(x[0][0][0][0])
-    s.add(x[0][0][1][1])
+def add_sb1(home, per, s):
+    s.add(home[(0, 1, 0)])  # team 0 is home against 1 in week 0
+    s.add(Not(home[(1, 0, 0)])) # implicit
+    s.add(per[(0, 0, 0)])   # team 0 plays week 0, period 0    
+    s.add(per[(1, 0, 0)])   # team 1 plays week 0, period 0 
 
 
 # (sb2) Fix opponents for team 0
-def add_sb2(x, Teams, Weeks, Periods, s):
+def add_sb2(home, Teams, Weeks, s):
     for w in Weeks:
-        if w < len(Teams) - 1:
-            opponent = w + 1
-            matches = []
-            for p in Periods:
-                # team 0 home, opponent away
-                matches.append(And(x[w][p][0][0], x[w][p][1][opponent]))
-                # team 0 away, opponent home
-                matches.append(And(x[w][p][1][0], x[w][p][0][opponent]))
-            s.add(exactly_one(matches, f"sb_team0_week{w}"))
+        opponent = w + 1
+        if opponent < len(Teams):
+            s.add(Or(home[(0, opponent, w)], home[(opponent, 0, w)]))
 
 
-def add_team_order_constraint(x, Teams, Weeks, Periods, s):
-    for w in Weeks:
-        for p in Periods:
-            for t1 in Teams:
-                for t2 in Teams:
-                    if t1 > t2:
-                        invalid_match = And(x[w][p][0][t1], x[w][p][1][t2])
-                        s.add(Not(invalid_match))
+def add_team_order_constraint(home, Teams, Weeks, s):
+    for i in Teams:
+        for j in Teams:
+            for w in Weeks:
+                if i > j:
+                    # we fix i < j
+                    s.add(Not(home[(i,j,w)]))
 
 
 
-def add_symmetry_breaking_constraints(x, Teams, Weeks, Periods, s, use_optimization):
-    add_sb1(x, s)
-    add_sb2(x, Teams, Weeks, Periods, s)
+def add_symmetry_breaking_constraints(home, per, Teams, Weeks, Periods, s, use_optimization):
+    add_sb1(home, per, s)
+    add_sb2(home, Teams, Weeks, s)
     if not use_optimization:
-        add_team_order_constraint(x, Teams, Weeks, Periods, s)
+        add_team_order_constraint(home, Teams, Weeks, s)
 
 
 
 # -----------------------
 # OPTIMIZATION CONSTRAINT
 # -----------------------
-def add_max_diff_constraint(x, Teams, Weeks, Periods, max_diff, s):
+# home-away max imbalance
+# -----------------------
+
+def add_max_diff_constraint(home, Teams, Weeks, max_diff, s):
     """
-    Boolean-only constraint for home-away difference
+    Adds a Boolean-only SAT constraint to bound the home-away imbalance for each team.
+    home[i,j,w] = True if i plays at home against j in week w
     """
-    total_weeks = len(Weeks)
+    total_games = len(Weeks)
     
     for t in Teams:
         home_games = []
-        for w in Weeks:
-            for p in Periods:
-                home_games.append(x[w][p][0][t])
+        for j in Teams:
+            if t == j:
+                continue
+            for w in Weeks:
+                if (t,j,w) in home:
+                    home_games.append(home[(t,j,w)])
+                elif (j,t,w) in home:  # opzionale, se consideri i match in trasferta
+                    home_games.append(Not(home[(j,t,w)]))
         
-        # The number of home games must be between min_home and max_home
-        min_home = (total_weeks - max_diff) // 2
-        max_home = (total_weeks + max_diff) // 2
+        if not home_games:
+            print(f"DEBUG: nessuna partita trovata per team {t}")
+            continue
         
-        if min_home == max_home:
-            # Exactly k home games
-            s.add(exactly_k(home_games, min_home, f"exactly_{min_home}_team{t}"))
-        else:
-            # Range constraint
-            if min_home > 0:
-                s.add(at_least_k(home_games, min_home, f"at_least_{min_home}_team{t}"))
-            if max_home < total_weeks:
-                s.add(at_most_k(home_games, max_home, f"at_most_{max_home}_team{t}"))
+        min_home = (total_games - max_diff) // 2
+        max_home = (total_games + max_diff) // 2
+        
+        s.add(at_least_k(home_games, min_home))
+        s.add(at_most_k(home_games, max_home))
+                
 
-
-
-def calculate_imbalances(model, variables, Teams, Weeks, Periods):
-    """Calculate home-away imbalances for each team correctly"""
+# -----------------------
+# CALCULATE IMBALANCES FROM MODEL
+# -----------------------
+def calculate_imbalances(model, home, Teams, Weeks):
+    """
+    Computes home-away imbalances for each team from a solved model.
+    """
     imbalances = {}
-    for t in Teams:
-        home = 0
-        away = 0
-        
-        for w in Weeks:
-            for p in Periods:
-                if is_true(model.evaluate(variables[w][p][0][t])):
-                    home += 1
-                if is_true(model.evaluate(variables[w][p][1][t])):
-                    away += 1
-        
-        # Each team should play exactly len(Weeks) games
-        # So home + away should equal len(Weeks)
-        imbalances[t] = abs(home - away)
-        #print(f"Team {t}: {home} home, {away} away, imbalance: {abs(home-away)}")
-    
+
+    for i in Teams:
+        home_count = 0
+        away_count = 0
+        for j in Teams:
+            if i == j:
+                continue    # skip self-match
+            for w in Weeks:
+                if (i,j,w) in home and is_true(model.evaluate(home[(i, j, w)])):
+                    home_count += 1
+                elif (j,i,w) in home and is_true(model.evaluate(home[(j, i, w)])):
+                        away_count += 1
+
+        imbalances[i] = abs(home_count - away_count)
+
     return imbalances
