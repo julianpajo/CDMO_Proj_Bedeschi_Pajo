@@ -5,128 +5,121 @@ import time
 
 def solve_instance(n_teams, solver_name, use_sb=False, use_optimization=False, max_diff_constraint=None):
     
-    start_time = time.time()
+    try:
+        if use_optimization:
 
-    if use_optimization:
+            model, home, per, max_diff, elapsed = optimize_home_away_difference(n_teams, use_sb, 300)
 
-        model, home, per, max_diff, elapsed, is_optimal = optimize_home_away_difference(n_teams, use_sb, 300)
-
-        return {
-            "status": sat if model else unsat,
-            "time": elapsed,
-            "model": model,
-            "home": home, 
-            "per": per,
-            "weeks": list(range(n_teams - 1)),
-            "periods": list(range(n_teams // 2)),
-            "extra_params": {
-                "sb": use_sb,
-                "opt": True,
-                "teams_list": list(range(n_teams)),
-                "teams": n_teams,
-                "max_diff": max_diff,
-                "is_optimal": is_optimal
+            return {
+                "status": sat if model else unsat,
+                "time": elapsed,
+                "model": model,
+                "home": home, 
+                "per": per,
+                "weeks": list(range(n_teams - 1)),
+                "periods": list(range(n_teams // 2)),
+                "extra_params": {
+                    "sb": use_sb,
+                    "opt": True,
+                    "teams_list": list(range(n_teams)),
+                    "teams": n_teams,
+                    "max_diff": max_diff
+                }
             }
-        }
     
-    else:
-        # Regular solving path
-        solver, home, per, weeks, periods, extra_params = build_model(n_teams, use_sb, False)
-        
-        # Solve the model
-        status = solver.check()
-        elapsed_time = time.time() - start_time
+        else:
+            # Regular solving path
+            start_time = time.time()
 
-        # Prepare result
-        result = {
-            "status": status,
-            "time": elapsed_time,
-            "stats": solver.statistics(),
-            "home": home, 
-            "per": per,
-            "weeks": weeks,
-            "periods": periods,
-            "extra_params": {
-                **extra_params,
-                "opt": False,
-                "max_diff": None,
-                "is_optimal": (status == sat) 
+            solver, home, per, weeks, periods, extra_params = build_model(n_teams, use_sb, False)
+        
+            # Solve the model
+            status = solver.check()
+            elapsed_time = time.time() - start_time
+
+            # Prepare result
+            result = {
+                "status": status,
+                "model": solver.model() if status == sat else None,
+                "time": elapsed_time,
+                "stats": solver.statistics(),
+                "home": home, 
+                "per": per,
+                "weeks": weeks,
+                "periods": periods,
+                "extra_params": {
+                    **extra_params,
+                    "opt": False,
+                    "max_diff": None,
+                    "is_optimal": (status == sat) 
+                }
             }
-        }
-
-        # Add model if SAT
-        if status == sat:
-            result["model"] = solver.model()
         
-        return result
+            return result
+        
+    
+    except KeyboardInterrupt:
+        elapsed = time.time() - start_time
+        return {
+            "status": unsat,
+            "time": 300,
+            "model": None,
+            "message": "Execution stopped by user",
+        }
+        
 
 
 def optimize_home_away_difference(n_teams, use_sb=False, timeout=300):
     """
-    Fast optimization for SMT using binary search with push/pop
+    SMT optimization using binary search with precomputed Z3 expressions.
     """
     start_time = time.time()
     
-    # Build base SMT model
     solver, home, per, Weeks, Periods, extra_params = build_model(n_teams, use_sb, True)
     Teams = list(range(n_teams))
+
+    smt_model.add_domain_constrain(per, Teams, Weeks, Periods, solver)
+
     
-    # Create the max_imbalance variable and add constraints
-    max_imb_var = smt_model.max_imbalance(home, Teams, Weeks, solver)  # Passa il solver
+    # Precompute home/away counts as Z3 Int expressions
+    home_games = [Sum([If(home[t][j][w], 1, 0) for j in Teams if j != t for w in Weeks]) for t in Teams]
+    away_games = [Sum([If(home[j][t][w], 1, 0) for j in Teams if j != t for w in Weeks]) for t in Teams]
     
-    # Binary search bounds
-    lower_bound, upper_bound = 1, n_teams - 1
-    best_model, best_max_diff = None, upper_bound
+    max_imb_var = Int("max_imbalance")
+    for t in Teams:
+        solver.add(max_imb_var >= Abs(home_games[t] - away_games[t]))
     
-    # Push the base state
-    solver.push()
+    lower_bound, upper_bound = 1, n_teams-1
+    best_model, best_max = None, upper_bound
     
-    # Binary search
-    while lower_bound <= upper_bound and (time.time() - start_time) < timeout:
-        mid = (lower_bound + upper_bound) // 2
-        print(f"Testing max_imbalance: {mid}")
+
+    try:
+        while lower_bound <= upper_bound and (time.time() - start_time) < timeout:
+            mid = (lower_bound + upper_bound) // 2
+            solver.push()
+            solver.add(max_imb_var <= mid)
         
-        # Remove previous constraint and add new one
-        solver.pop()
-        solver.push()
-        solver.add(max_imb_var <= mid)
+            if solver.check() == sat:
+                best_model = solver.model()
+                best_max = mid
+                solver.pop()
+                upper_bound = mid - 1
+                if best_max == 1:
+                    break
+            else:
+                solver.pop()
+                lower_bound = mid + 1
         
-        if solver.check() == sat:
-            best_model = solver.model()
-            best_max_diff = mid
-            upper_bound = mid - 1
-        else:
-            lower_bound = mid + 1
     
-    # Cleanup
-    solver.pop()
+        elapsed = time.time() - start_time
+
+        # Timeout with no solution
+        if (elapsed >= timeout and best_model is None):
+            return None, None, None, None, timeout
     
-    elapsed = time.time() - start_time
+        # Solution found or timeout with partial solution
+        return best_model, home, per, best_max, elapsed
     
-    if best_model:
-        # Calculate actual imbalance from the model
-        imbalances = []
-        for t in Teams:
-            home_games = 0
-            away_games = 0
-            for w in Weeks:
-                # Evaluate it correctly
-                home_val = best_model.evaluate(home[(t, w)])
-                if home_val.is_int() and home_val.as_long() != -1:
-                    home_games += 1
-                
-                for j in Teams:
-                    if j != t:
-                        away_val = best_model.evaluate(home[(j, w)])
-                        if away_val.is_int() and away_val.as_long() == t:
-                            away_games += 1
-                            break
-            
-            imbalances.append(abs(home_games - away_games))
-        
-        actual_max = max(imbalances) if imbalances else 0
-        is_optimal = (actual_max == 1)
-        
-        return best_model, home, per, actual_max, elapsed, is_optimal
-    
-    return None, None, None, n_teams - 1, elapsed, False
+    except KeyboardInterrupt:
+        elapsed = time.time() - start_time
+        return best_model, home, per, best_max, timeout

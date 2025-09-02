@@ -43,7 +43,7 @@ def print_solution(time, optimal, solution, obj):
 def parse_solution(result):
     """
     Params:
-        result: dict come restituito da solve_instance
+        result: dict from solve_instance
             {
                 "status": status,
                 "time": elapsed_time,
@@ -74,19 +74,17 @@ def parse_solution(result):
 
     for w in Weeks:
         for i in Teams:
-            opp = model.evaluate(home[(i, w)])
-            if not opp.is_int():
-                continue
-            j = opp.as_long()
-            if j == -1 or j == i:
-                continue
+            for j in Teams:
+                if i == j:
+                    continue
 
-            # Evaluate the period
-            period_val = model.evaluate(per[(i, w)]).as_long()
+                # Check if i plays at home vs j in week w
+                if model.evaluate(home[i][j][w], model_completion=True):
+                    period_val = model.evaluate(per[i][w]).as_long()
 
-            # Add the match (home = i, away = j)
-            if schedule_periods[period_val][w] is None:
-                schedule_periods[period_val][w] = [i + 1, j + 1]  # +1 per 1-based
+                    # Place the match [home, away] in the right period and week
+                    if schedule_periods[period_val][w] is None:
+                        schedule_periods[period_val][w] = [i + 1, j + 1]  # +1 for 1-based teams
 
     return schedule_periods
 
@@ -145,16 +143,21 @@ def process_result(result, use_optimization):
     Processes the result from a SAT solver with validation
     """
     elapsed_time = result["time"]
+    time_val = min(math.floor(elapsed_time), 300)
+
     solution = parse_solution(result)
     has_solution = bool(solution)
 
-    if use_optimization and has_solution:
+    if use_optimization:
         max_diff = result["extra_params"].get("max_diff")
-        is_optimal = max_diff is not None
         obj = max_diff
+        is_optimal = has_solution and obj == 1
     else:
         is_optimal = has_solution
         obj = None
 
-    time_val = min(math.floor(elapsed_time), 300)
+    if time_val >= 300:
+        is_optimal = False
+
+    
     return time_val, is_optimal, solution, obj

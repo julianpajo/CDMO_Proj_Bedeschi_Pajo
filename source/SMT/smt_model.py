@@ -4,6 +4,7 @@ from source.SMT import smt_utils as utils
 import os.path as pt
 from z3 import *
 import os, time
+import gc
 
 
 current_dir = os.getcwd()
@@ -107,7 +108,7 @@ def run_all():
     Runs all configurations for the SMT model.
     """
     solvers = ["z3"] 
-    instances = [6, 8, 10, 12, 14]
+    instances = [6, 8, 10, 12, 14, 16, 18]
     output_dir = DEFAULT_SMT_OUTPUT_DIR
     os.makedirs(output_dir, exist_ok=True)
 
@@ -118,5 +119,7 @@ def run_all():
             for sb in [False, True]:
                 for opt in [False, True]: 
                     results_dict = run_model(results_dict, n, solver, sb, opt)
+
+                    gc.collect()
 
         utils.write_solution(output_dir, n, results_dict)
