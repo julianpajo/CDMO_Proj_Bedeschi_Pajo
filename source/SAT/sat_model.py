@@ -4,7 +4,7 @@ import os.path as pt
 from z3 import *
 import os, time
 
-import logging
+import gc
 
 
 current_dir = os.getcwd()
@@ -23,9 +23,9 @@ def sat_solver(n_teams, solver_name, use_sb=False, use_optimization=False):
     
     Params:
         n_teams: Number of teams
-        solver_name: The solver name (always "z3" for SAT)
+        solver_name: The solver name
         use_sb: Whether to use symmetry breaking
-        use_optimization: Whether to use optimization techniques
+        use_optimization: Whether to use optimization
     
     Returns:
         dict: Result object containing solution and statistics
@@ -114,7 +114,7 @@ def run_all():
     """
 
     solvers = ["z3", "glucose"] 
-    instances = [6, 8, 10, 12, 14]
+    instances = [6, 8, 10, 12, 14, 16, 18]   
     output_dir = DEFAULT_SAT_OUTPUT_DIR
     os.makedirs(output_dir, exist_ok=True)
 
@@ -125,5 +125,7 @@ def run_all():
             for sb in [False, True]:
                 for opt in [False, True]: 
                     results_dict = run_model(results_dict, n, solver, sb, opt)
+
+                    gc.collect()
 
         utils.write_solution(output_dir, n, results_dict)

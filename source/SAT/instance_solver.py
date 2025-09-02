@@ -5,7 +5,6 @@ import subprocess
 from z3 import *
 import tempfile
 import time
-import uuid
 import os
 
 SOLVERS = {
@@ -20,17 +19,17 @@ def solve_instance(n_teams, solver_name, use_sb=False, use_optimization=False, p
     Returns a dictionary with model, variables, and statistics.
     """
     start_time = time.time()
-    
     Teams = list(range(n_teams))
-    
+
     # -----------------------------
     # Optimization + Z3 branch
     # -----------------------------
     if use_optimization and solver_name.lower() == "z3":
-        # Optimize home-away imbalance via binary search
-        model, home, per, max_diff, elapsed, is_optimal = optimize_home_away_difference(n_teams, use_sb, timeout=300)
+        model, home, per, max_diff, elapsed, is_optimal = optimize_home_away_difference(
+            n_teams, use_sb, timeout=300
+        )
         num_weeks, num_periods = n_teams - 1, n_teams // 2
-        
+
         return {
             "status": sat if model else unsat,
             "time": elapsed,
@@ -44,19 +43,19 @@ def solve_instance(n_teams, solver_name, use_sb=False, use_optimization=False, p
                 "teams_list": Teams,
                 "teams": n_teams,
                 "max_diff": max_diff,
-                "is_optimal": is_optimal
-            }
+                "is_optimal": is_optimal,
+            },
         }
-    
+
     # -----------------------------
     # Optimization + Glucose branch
     # -----------------------------
     elif use_optimization and solver_name.lower() == "glucose":
         if path is None:
-            raise ValueError("Per l'ottimizzazione con Glucose devi fornire il path dell'eseguibile")
-        
+            raise ValueError("For optimization with Glucose you must provide the executable path")
+
         result = optimize_home_away_difference_glucose(n_teams, path, use_sb, timeout=300)
-        
+
         return {
             "status": sat if result["dimacs_output"] else unsat,
             "time": result["time"],
@@ -69,22 +68,34 @@ def solve_instance(n_teams, solver_name, use_sb=False, use_optimization=False, p
                 "teams_list": Teams,
                 "teams": n_teams,
                 "max_diff": result["best_max_diff"],
-                "is_optimal": result["is_optimal"]
+                "is_optimal": result["is_optimal"],
             },
             "dimacs_output": result["dimacs_output"],
-            "variable_mapping": result["variable_mapping"]
+            "variable_mapping": result["variable_mapping"],
         }
 
     # -----------------------------
     # Regular SAT solving
     # -----------------------------
     else:
-        solver, home, per, Weeks, Periods, extra_params = build_model(n_teams, use_sb, use_optimization)
-        
+        solver, home, per, Weeks, Periods, extra_params = build_model(
+            n_teams, use_sb, use_optimization
+        )
+
         if solver_name.lower() == "z3":
             return solve_with_z3(solver, home, per, Weeks, Periods, extra_params, start_time)
         else:
-            return solve_with_dimacs(solver, home, per, solver_name, Weeks, Periods, extra_params, start_time, solvers_config=SOLVERS)
+            return solve_with_dimacs(
+                solver,
+                home,
+                per,
+                solver_name,
+                Weeks,
+                Periods,
+                extra_params,
+                start_time,
+                solvers_config=SOLVERS,
+            )
 
 
 def solve_with_z3(solver, home, per, Weeks, Periods, extra_params, start_time):
@@ -92,12 +103,11 @@ def solve_with_z3(solver, home, per, Weeks, Periods, extra_params, start_time):
     Solve the SAT instance using Z3 solver and return a structured result.
     """
     try:
-
         status = solver.check()
         elapsed_time = time.time() - start_time
-        is_optimal = (status == sat)
-   
-        result = {
+        is_optimal = status == sat
+
+        return {
             "status": status,
             "time": elapsed_time,
             "stats": solver.statistics(),
@@ -105,13 +115,10 @@ def solve_with_z3(solver, home, per, Weeks, Periods, extra_params, start_time):
             "weeks": Weeks,
             "periods": Periods,
             "extra_params": {**extra_params, "is_optimal": is_optimal},
-            "model": solver.model() if status == sat else None
+            "model": solver.model() if status == sat else None,
         }
-        
-        return result
-    
+
     except KeyboardInterrupt:
-        print("\nZ3 solver interrupted by user")
         return {
             "status": unknown,
             "time": 300,
@@ -120,16 +127,14 @@ def solve_with_z3(solver, home, per, Weeks, Periods, extra_params, start_time):
             "weeks": Weeks,
             "periods": Periods,
             "extra_params": {**extra_params, "is_optimal": False},
-            "model": None
+            "model": None,
         }
 
 
-
-def solve_with_dimacs(solver, home, per, solver_name, Weeks, Periods, extra_params,
-                      start_time, solvers_config=None, instance_name=None):
+def solve_with_dimacs(solver, home, per, solver_name, Weeks, Periods, extra_params, start_time, solvers_config=None, instance_name=None):
     """
     Solve using an external DIMACS solver (e.g., Glucose) with proper file handling
-    and unique temporary files, compatible with home/per variables.
+    and unique temporary files, compatible with home/per variables (matrix form).
     """
 
     if solvers_config is None:
@@ -151,10 +156,12 @@ def solve_with_dimacs(solver, home, per, solver_name, Weeks, Periods, extra_para
         variable_mapping = build_variable_mapping(home, per, var_map, Teams, Weeks, Periods)
         if variable_mapping is None:
             print("WARNING: Variable mapping failed, fallback to get_all_variables_for_dimacs_from_variables_only")
-            variable_mapping = get_all_variables_for_dimacs_from_variables_only(home, per, Teams, Weeks, Periods, solver)
+            variable_mapping = get_all_variables_for_dimacs_from_variables_only(
+                home, per, Teams, Weeks, Periods, solver
+            )
 
         # 3. Write DIMACS to temporary file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.cnf', delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cnf", delete=False) as tmp_file:
             cnf_file = tmp_file.name
             tmp_file.write(dimacs_str)
 
@@ -163,7 +170,7 @@ def solve_with_dimacs(solver, home, per, solver_name, Weeks, Periods, extra_para
             [dimacs_solver_path, "-model", cnf_file],
             capture_output=True,
             text=True,
-            timeout=max(1, 300 - (time.time() - start_time))
+            timeout=max(1, 300 - (time.time() - start_time)),
         )
         elapsed_time = time.time() - start_time
 
@@ -187,16 +194,16 @@ def solve_with_dimacs(solver, home, per, solver_name, Weeks, Periods, extra_para
                 "solver": solver_name,
                 "stdout_lines": len(result.stdout.splitlines()),
                 "stderr_lines": len(result.stderr.splitlines()),
-                "variables_count": len(var_map)
+                "variables_count": len(var_map),
             },
-            "variables": None,
+            "variables": None,  # no Z3 model in DIMACS path
             "weeks": Weeks,
             "periods": Periods,
             "extra_params": extra_params,
             "solver_output": result.stdout,
             "solver_error": result.stderr,
             "variable_mapping": variable_mapping,
-            "cnf_file": cnf_file
+            "cnf_file": cnf_file,
         }
 
         if status == sat:
@@ -215,10 +222,9 @@ def solve_with_dimacs(solver, home, per, solver_name, Weeks, Periods, extra_para
             "extra_params": extra_params,
             "solver_output": "",
             "solver_error": "Timeout after 300 seconds",
-            "variable_mapping": {}
+            "variable_mapping": {},
         }
     except KeyboardInterrupt:
-        print(f"\nSolver {solver_name} interrupted by user")
         return {
             "status": unknown,
             "time": 300,
@@ -229,7 +235,7 @@ def solve_with_dimacs(solver, home, per, solver_name, Weeks, Periods, extra_para
             "extra_params": extra_params,
             "solver_output": "",
             "solver_error": "Interrupted by user",
-            "variable_mapping": {}
+            "variable_mapping": {},
         }
     finally:
         if cnf_file and os.path.exists(cnf_file):

@@ -41,10 +41,9 @@ def print_solution(time, optimal, solution, obj):
     print("\n".join(output) + "\n")
 
 
-
 def parse_solution(result):
     """
-    Parses the solution from a SAT model (Z3 or DIMACS).
+    Parses the solution from a SAT model (Z3 or DIMACS) using matrix-style variables.
 
     Returns:
         schedule_periods[p][w] = [home_team, away_team]
@@ -55,38 +54,37 @@ def parse_solution(result):
     Teams = result["extra_params"]["teams_list"]
     Weeks = result["weeks"]
     Periods = result["periods"]
+    n = len(Teams)
 
     schedule_periods = [[None for _ in Weeks] for _ in Periods]
 
     # ----- Z3 case -----
     if "model" in result and result["model"] is not None:
         model = result["model"]
-        home_vars = result["variables"]["home"]
-        per_vars = result["variables"]["per"]
+        home = result["variables"]["home"]
+        per = result["variables"]["per"]
 
-        for w in Weeks:
-            for p in Periods:
-                # Trova le due squadre in questo periodo e settimana
+        for w_idx, w in enumerate(Weeks):
+            for p_idx, p in enumerate(Periods):
+                # Find the two teams in this period and week
                 teams_in_period = []
-                for i in Teams:
-                    # Verifica che la variabile per esista nel modello
-                    if (i, w, p) in per_vars:
-                        if is_true(model.evaluate(per_vars[(i, w, p)])):
-                            teams_in_period.append(i)
+                for i in range(n):
+                    if is_true(model.evaluate(per[i][w_idx][p_idx])):
+                        teams_in_period.append(i)
                 
                 if len(teams_in_period) != 2:
-                    continue  # ignora periodi incompleti
+                    continue  # ignore incomplete periods
 
                 i, j = teams_in_period
-                # Verifica che le variabili home esistano
-                if (i, j, w) in home_vars and is_true(model.evaluate(home_vars.get((i, j, w), False))):
+                # Determine the home team
+                if is_true(model.evaluate(home[i][j][w_idx])):
                     home_team, away_team = i + 1, j + 1
-                elif (j, i, w) in home_vars and is_true(model.evaluate(home_vars.get((j, i, w), False))):
+                elif is_true(model.evaluate(home[j][i][w_idx])):
                     home_team, away_team = j + 1, i + 1
                 else:
                     continue  # skip if no home variable found
 
-                schedule_periods[p][w] = [home_team, away_team]
+                schedule_periods[p_idx][w_idx] = [home_team, away_team]
 
     # ----- DIMACS case -----
     elif "dimacs_output" in result and "variable_mapping" in result:
@@ -97,7 +95,7 @@ def parse_solution(result):
             print("[ERROR] variable_mapping missing or invalid")
             return []
 
-        # Legge le assegnazioni dal DIMACS
+        # Read the assignments from the DIMACS output
         assignments = {}
         for line in dimacs_output.splitlines():
             line = line.strip()
@@ -114,30 +112,32 @@ def parse_solution(result):
                     continue
                 assignments[abs(lit)] = (lit > 0)
 
-        # Ricostruisce schedule usando home/per
-        for p in Periods:
-            for w in Weeks:
+        for w_idx, w in enumerate(Weeks):
+            for p_idx, p in enumerate(Periods):
                 teams_in_period = []
                 for var_id, info in variable_mapping["to_var"].items():
-                    if info[0] == "period" and info[3] == p and info[2] == w:
+                    if info[0] == "period" and info[2] == w and info[3] == p:
                         if assignments.get(var_id, False):
                             teams_in_period.append(info[1])
                 if len(teams_in_period) != 2:
                     continue
                 i, j = teams_in_period
+
+                # Determine the home team
                 home_id = None
                 for var_id, info in variable_mapping["to_var"].items():
                     if info[0] == "home" and info[1] == i and info[2] == j and info[3] == w:
                         home_id = var_id
                         break
+
                 if home_id and assignments.get(home_id, False):
                     home_team, away_team = i + 1, j + 1
                 else:
                     home_team, away_team = j + 1, i + 1
-                schedule_periods[p][w] = [home_team, away_team]
+
+                schedule_periods[p_idx][w_idx] = [home_team, away_team]
 
     return schedule_periods
-
 
 
 
@@ -164,13 +164,12 @@ def make_key(solver_name, sb, opt):
     return "_".join(parts)
 
 
-
 def write_solution(output_dir, n, results_dict):
     """
     Writes the results to a JSON file.
     Params:
         output_dir: The directory where the results will be saved.
-        n: An identifier for the results (e.g., number of teams).
+        n: An identifier for the results (number of teams).
         results_dict: A dictionary containing the results to be written.
     """
 
@@ -190,10 +189,9 @@ def write_solution(output_dir, n, results_dict):
         f.write('}\n')
 
 
-
 def process_result(result, use_optimization):
     """
-    Processes the result from a SAT solver with validation
+    Processes the result from a SAT solver.
     """
     elapsed_time = result["time"]
     solution = parse_solution(result)
