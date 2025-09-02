@@ -96,6 +96,7 @@ def optimize_home_away_difference(n_teams, use_sb=False, timeout=300):
     try:
         while lower_bound <= upper_bound and (time.time() - start_time) < timeout:
             mid = (lower_bound + upper_bound) // 2
+            print(f"Testing max_imbalance = {mid}")
             solver.push()
             solver.add(max_imb_var <= mid)
         
