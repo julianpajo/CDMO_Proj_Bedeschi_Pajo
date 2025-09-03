@@ -64,27 +64,21 @@ def parse_solution(result):
         home = result["variables"]["home"]
         per = result["variables"]["per"]
 
-        for w_idx, w in enumerate(Weeks):
-            for p_idx, p in enumerate(Periods):
-                # Find the two teams in this period and week
-                teams_in_period = []
-                for i in range(n):
-                    if is_true(model.evaluate(per[i][w_idx][p_idx])):
-                        teams_in_period.append(i)
-                
-                if len(teams_in_period) != 2:
-                    continue  # ignore incomplete periods
 
-                i, j = teams_in_period
-                # Determine the home team
-                if is_true(model.evaluate(home[i][j][w_idx])):
-                    home_team, away_team = i + 1, j + 1
-                elif is_true(model.evaluate(home[j][i][w_idx])):
-                    home_team, away_team = j + 1, i + 1
-                else:
-                    continue  # skip if no home variable found
+        for w in Weeks:
+            for i in Teams:
+                for j in Teams:
+                    if i == j:
+                        continue
 
-                schedule_periods[p_idx][w_idx] = [home_team, away_team]
+                    # Check if i plays at home vs j in week w
+                    if model.evaluate(home[i][j][w], model_completion=True):
+                        # Find the period where i plays this week
+                        period = next((p for p in Periods if model.evaluate(per[i][w][p], model_completion=True)), None)
+
+                        if period is not None and schedule_periods[period][w] is None:
+                            schedule_periods[period][w] = [i + 1, j + 1]  # 1-based teams
+
 
     # ----- DIMACS case -----
     elif "dimacs_output" in result and "variable_mapping" in result:
@@ -194,6 +188,8 @@ def process_result(result, use_optimization):
     Processes the result from a SAT solver.
     """
     elapsed_time = result["time"]
+    time_val = min(math.floor(elapsed_time), 300)
+
     solution = parse_solution(result)
     has_solution = bool(solution)
 
@@ -201,10 +197,12 @@ def process_result(result, use_optimization):
         max_diff = result["extra_params"].get("max_diff")
         obj = max_diff
         is_optimal = (obj == 1)
-        
     else:
         is_optimal = has_solution
         obj = None
 
-    time_val = min(math.floor(elapsed_time), 300)
+    if time_val >= 300:
+        is_optimal = False
+
+    
     return time_val, is_optimal, solution, obj

@@ -199,27 +199,3 @@ def add_max_diff_constraint(home, Teams, Weeks, max_diff, s):
         
         s.add(at_least_k(home_games, min_home))
         s.add(at_most_k(home_games, max_home))
-
-
-# -----------------------
-# CALCULATE IMBALANCES
-# -----------------------
-
-def calculate_imbalances(model, home, Teams, Weeks):
-    imbalances = {}
-
-    for i in Teams:
-        home_count = 0
-        away_count = 0
-        for j in Teams:
-            if i == j:
-                continue
-            for w in Weeks:
-                if is_true(model.evaluate(home[i][j][w])):
-                    home_count += 1
-                elif is_true(model.evaluate(home[j][i][w])):
-                    away_count += 1
-
-        imbalances[i] = abs(home_count - away_count)
-
-    return imbalances

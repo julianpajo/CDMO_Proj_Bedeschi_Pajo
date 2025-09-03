@@ -25,7 +25,7 @@ def solve_instance(n_teams, solver_name, use_sb=False, use_optimization=False, p
     # Optimization + Z3 branch
     # -----------------------------
     if use_optimization and solver_name.lower() == "z3":
-        model, home, per, max_diff, elapsed, is_optimal = optimize_home_away_difference(
+        model, home, per, max_diff, elapsed = optimize_home_away_difference(
             n_teams, use_sb, timeout=300
         )
         num_weeks, num_periods = n_teams - 1, n_teams // 2
@@ -42,8 +42,7 @@ def solve_instance(n_teams, solver_name, use_sb=False, use_optimization=False, p
                 "opt": use_optimization,
                 "teams_list": Teams,
                 "teams": n_teams,
-                "max_diff": max_diff,
-                "is_optimal": is_optimal,
+                "max_diff": max_diff
             },
         }
 
@@ -67,8 +66,7 @@ def solve_instance(n_teams, solver_name, use_sb=False, use_optimization=False, p
                 "opt": use_optimization,
                 "teams_list": Teams,
                 "teams": n_teams,
-                "max_diff": result["best_max_diff"],
-                "is_optimal": result["is_optimal"],
+                "max_diff": result["best_max_diff"]
             },
             "dimacs_output": result["dimacs_output"],
             "variable_mapping": result["variable_mapping"],
@@ -85,17 +83,7 @@ def solve_instance(n_teams, solver_name, use_sb=False, use_optimization=False, p
         if solver_name.lower() == "z3":
             return solve_with_z3(solver, home, per, Weeks, Periods, extra_params, start_time)
         else:
-            return solve_with_dimacs(
-                solver,
-                home,
-                per,
-                solver_name,
-                Weeks,
-                Periods,
-                extra_params,
-                start_time,
-                solvers_config=SOLVERS,
-            )
+            return solve_with_dimacs(solver, home, per, solver_name, Weeks, Periods, extra_params, start_time, solvers_config=SOLVERS,)
 
 
 def solve_with_z3(solver, home, per, Weeks, Periods, extra_params, start_time):
@@ -120,14 +108,10 @@ def solve_with_z3(solver, home, per, Weeks, Periods, extra_params, start_time):
 
     except KeyboardInterrupt:
         return {
-            "status": unknown,
+            "status": unsat,
             "time": 300,
-            "stats": {"error": "interrupted", "solver": "z3"},
-            "variables": {"home": home, "per": per},
-            "weeks": Weeks,
-            "periods": Periods,
-            "extra_params": {**extra_params, "is_optimal": False},
             "model": None,
+            "message": "Execution stopped by user"
         }
 
 
@@ -196,7 +180,7 @@ def solve_with_dimacs(solver, home, per, solver_name, Weeks, Periods, extra_para
                 "stderr_lines": len(result.stderr.splitlines()),
                 "variables_count": len(var_map),
             },
-            "variables": None,  # no Z3 model in DIMACS path
+            "variables": None,
             "weeks": Weeks,
             "periods": Periods,
             "extra_params": extra_params,
@@ -211,31 +195,14 @@ def solve_with_dimacs(solver, home, per, solver_name, Weeks, Periods, extra_para
 
         return result_dict
 
-    except subprocess.TimeoutExpired:
+    except (subprocess.TimeoutExpired, KeyboardInterrupt):
         return {
-            "status": unknown,
+            "status": unsat,
             "time": 300,
-            "stats": {"error": "timeout", "solver": solver_name},
-            "variables": None,
-            "weeks": Weeks,
-            "periods": Periods,
             "extra_params": extra_params,
             "solver_output": "",
-            "solver_error": "Timeout after 300 seconds",
-            "variable_mapping": {},
-        }
-    except KeyboardInterrupt:
-        return {
-            "status": unknown,
-            "time": 300,
-            "stats": {"error": "interrupted", "solver": solver_name},
-            "variables": None,
-            "weeks": Weeks,
-            "periods": Periods,
-            "extra_params": extra_params,
-            "solver_output": "",
-            "solver_error": "Interrupted by user",
-            "variable_mapping": {},
+            "solver_error": "Timeout or interrupted by user",
+            "variable_mapping": {}
         }
     finally:
         if cnf_file and os.path.exists(cnf_file):

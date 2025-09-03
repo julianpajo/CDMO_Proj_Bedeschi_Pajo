@@ -148,10 +148,10 @@ def process_result(result, use_optimization):
     solution = parse_solution(result)
     has_solution = bool(solution)
 
-    if use_optimization:
+    if use_optimization and has_solution:
         max_diff = result["extra_params"].get("max_diff")
         obj = max_diff
-        is_optimal = has_solution and obj == 1
+        is_optimal = (obj == 1)
     else:
         is_optimal = has_solution
         obj = None

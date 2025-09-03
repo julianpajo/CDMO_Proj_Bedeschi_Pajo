@@ -76,20 +76,6 @@ def build_variable_mapping(home, per, var_map, Teams, Weeks, Periods):
     return mapping
 
 
-def get_all_variables_for_dimacs(home, per, solver, Teams, Weeks, Periods):
-    """
-    Main function to build the complete mapping from Z3 -> DIMACS.
-    Returns a mapping {"to_var", "to_id"}.
-    """
-    try:
-        dimacs_str, var_map = solver_to_dimacs(solver)
-        mapping = build_variable_mapping(home, per, var_map, Teams, Weeks, Periods)
-        return mapping
-    except Exception as e:
-        print(f"[ERROR] in get_all_variables_for_dimacs: {e}")
-        return None
-
-
 def get_all_variables_for_dimacs_from_variables_only(home, per, Teams, Weeks, Periods, solver):
     """
     Builds the variable -> DIMACS ID mapping from Z3 model variables (home/per)

@@ -59,12 +59,11 @@ def solve_instance(n_teams, solver_name, use_sb=False, use_optimization=False, m
         
     
     except KeyboardInterrupt:
-        elapsed = time.time() - start_time
         return {
             "status": unsat,
             "time": 300,
             "model": None,
-            "message": "Execution stopped by user",
+            "message": "Execution stopped by user"
         }
         
 
@@ -122,5 +121,4 @@ def optimize_home_away_difference(n_teams, use_sb=False, timeout=300):
         return best_model, home, per, best_max, elapsed
     
     except KeyboardInterrupt:
-        elapsed = time.time() - start_time
         return best_model, home, per, best_max, timeout
