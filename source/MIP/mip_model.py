@@ -208,6 +208,9 @@ def run_single_instance(n, solver, use_sb=False, use_optimization=False):
         use_optimization: Whether to use optimization techniques
     """
 
+    if solver is None:
+        solver = 'gurobi'
+
     os.makedirs(DEFAULT_MIP_OUTPUT_DIR, exist_ok=True)
     results_dict = {}
     results_dict = run_model(results_dict, n, solver, use_sb, use_optimization)

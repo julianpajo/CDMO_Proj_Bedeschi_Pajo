@@ -6,7 +6,6 @@ import os, time
 
 import gc
 
-
 current_dir = os.getcwd()
 DEFAULT_SAT_OUTPUT_DIR = os.path.join(current_dir, 'res/SAT')
 
@@ -34,7 +33,7 @@ def sat_solver(n_teams, solver_name, use_sb=False, use_optimization=False):
 
     # Solve the instance
     result = solve_instance(n_teams, solver_name, use_sb, use_optimization, path)
-    
+
     return result
 
 
@@ -82,7 +81,7 @@ def run_model(results_dict, n, solver, sb=False, opt=False):
             "optimal": False,
             "obj": None
         }
-    
+
     return results_dict
 
 
@@ -97,6 +96,9 @@ def run_single_instance(n, solver, use_sb=False, use_optimization=False):
         use_optimization: Whether to use optimization techniques
     """
 
+    if solver is None:
+        solver = 'z3'
+
     output_dir = DEFAULT_SAT_OUTPUT_DIR
     os.makedirs(output_dir, exist_ok=True)
 
@@ -107,14 +109,13 @@ def run_single_instance(n, solver, use_sb=False, use_optimization=False):
     utils.write_solution(output_dir, n, results_dict)
 
 
-
 def run_all():
     """
     Runs all configurations for the SAT model.
     """
 
-    solvers = ["z3", "glucose"] 
-    instances = [6, 8, 10, 12, 14, 16, 18]   
+    solvers = ["z3", "glucose"]
+    instances = [6, 8, 10, 12, 14, 16, 18]
     output_dir = DEFAULT_SAT_OUTPUT_DIR
     os.makedirs(output_dir, exist_ok=True)
 
@@ -123,7 +124,7 @@ def run_all():
 
         for solver in solvers:
             for sb in [False, True]:
-                for opt in [False, True]: 
+                for opt in [False, True]:
                     results_dict = run_model(results_dict, n, solver, sb, opt)
 
                     gc.collect()

@@ -87,7 +87,7 @@ docker-compose run cdmo-models --all --model cp
 Run SAT model with 6 teams (default), no optimization, symmetry breaking:
 
 ```bash
-docker-compose run cdmo-models --single --model sat --teams 6 --sb
+docker-compose run cdmo-models --single --model sat --teams 6 --sb --solver glucose
 ```
 
 ---
@@ -97,7 +97,7 @@ docker-compose run cdmo-models --single --model sat --teams 6 --sb
 Run SMT model with 10 teams:
 
 ```bash
-docker-compose run cdmo-models --single --model smt --teams 10
+docker-compose run cdmo-models --single --model smt --teams 10 --solver z3
 ```
 
 ---

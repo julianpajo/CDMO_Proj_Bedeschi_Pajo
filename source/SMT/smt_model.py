@@ -82,7 +82,7 @@ def run_model(results_dict, n, solver, sb=False, opt=False):
     return results_dict
 
 
-def run_single_instance(n, solver="z3", use_sb=False, use_optimization=False):
+def run_single_instance(n, solver, use_sb=False, use_optimization=False):
     """
     Runs a single instance of the SMT model with the given parameters.
 
@@ -92,6 +92,9 @@ def run_single_instance(n, solver="z3", use_sb=False, use_optimization=False):
         use_sb: Whether to use symmetry breaking
         use_optimization: Whether to use optimization techniques
     """
+
+    if solver is None:
+        solver = 'z3'
 
     output_dir = DEFAULT_SMT_OUTPUT_DIR  
     os.makedirs(output_dir, exist_ok=True)

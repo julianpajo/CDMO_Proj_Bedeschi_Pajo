@@ -104,6 +104,9 @@ def run_single_instance(n, solver, use_sb=False, use_heuristics=False, use_optim
         use_optimization: Whether to use optimization techniques
     """
 
+    if solver is None:
+        solver = 'gecode'
+
     output_dir = DEFAULT_CP_OUTPUT_DIR
     os.makedirs(output_dir, exist_ok=True)
 
