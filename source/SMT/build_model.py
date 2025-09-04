@@ -31,7 +31,7 @@ def build_model(n_teams, use_sb=False, use_optimization=False):
     
     # Add constraints
     smt_model.add_hard_constraints(home, per, Teams, Weeks, Periods, solver)
-    smt_model.add_channelling_constraint(home, per, Teams, Weeks, Periods, solver)
+    smt_model.add_channeling_constraint(home, per, Teams, Weeks, Periods, solver)
     smt_model.add_implied_constraints(home, per, Teams, Weeks, Periods, solver)
 
     if use_sb:

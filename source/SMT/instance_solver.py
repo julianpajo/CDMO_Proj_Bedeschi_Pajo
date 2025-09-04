@@ -73,52 +73,47 @@ def optimize_home_away_difference(n_teams, use_sb=False, timeout=300):
     SMT optimization using binary search with precomputed Z3 expressions.
     """
     start_time = time.time()
-    
-    solver, home, per, Weeks, Periods, extra_params = build_model(n_teams, use_sb, True)
-    Teams = list(range(n_teams))
-
-    smt_model.add_domain_constrain(per, Teams, Weeks, Periods, solver)
-
-    
-    # Precompute home/away counts as Z3 Int expressions
-    home_games = [Sum([If(home[t][j][w], 1, 0) for j in Teams if j != t for w in Weeks]) for t in Teams]
-    away_games = [Sum([If(home[j][t][w], 1, 0) for j in Teams if j != t for w in Weeks]) for t in Teams]
-    
-    max_imb_var = Int("max_imbalance")
-    for t in Teams:
-        solver.add(max_imb_var >= Abs(home_games[t] - away_games[t]))
-    
-    lower_bound, upper_bound = 1, n_teams-1
-    best_model, best_max = None, upper_bound
-    
 
     try:
+        # Build base model
+        solver, home, per, Weeks, Periods, _ = build_model(n_teams, use_sb, use_optimization=True)
+        Teams = list(range(n_teams))
+        total_weeks = n_teams - 1
+
+        # Binary search bounds
+        lower_bound, upper_bound = 1, total_weeks
+        best_model, best_max_diff = None, upper_bound
+
+        # Binary search loop
         while lower_bound <= upper_bound and (time.time() - start_time) < timeout:
             mid = (lower_bound + upper_bound) // 2
             print(f"Testing max_imbalance = {mid}")
+
             solver.push()
-            solver.add(max_imb_var <= mid)
-        
-            if solver.check() == sat:
+            # Add max imbalance constraint
+            smt_model.add_max_diff_constraint(home, Teams, Weeks, mid, solver)
+
+            status = solver.check()
+
+            if status == sat:
                 best_model = solver.model()
-                best_max = mid
+                best_max_diff = mid
                 solver.pop()
                 upper_bound = mid - 1
-                if best_max == 1:
+                if best_max_diff == 1:
                     break
             else:
                 solver.pop()
                 lower_bound = mid + 1
-        
-    
+
         elapsed = time.time() - start_time
 
         # Timeout with no solution
-        if (elapsed >= timeout and best_model is None):
+        if elapsed >= timeout and best_model is None:
             return None, None, None, None, timeout
-    
+
         # Solution found or timeout with partial solution
-        return best_model, home, per, best_max, elapsed
-    
+        return best_model, home, per, best_max_diff, elapsed
+
     except KeyboardInterrupt:
-        return best_model, home, per, best_max, timeout
+        return best_model, home, per, best_max_diff, timeout

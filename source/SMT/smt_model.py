@@ -17,7 +17,7 @@ def smt_solver(n_teams, solver_name, use_sb=False, use_optimization=False):
     
     Params:
         n_teams: Number of teams
-        solver_name: The solver name (sempre "z3" per SMT)
+        solver_name: The solver name (always "z3")
         use_sb: Whether to use symmetry breaking
         use_optimization: Whether to use optimization techniques
     
@@ -111,7 +111,7 @@ def run_all():
     Runs all configurations for the SMT model.
     """
     solvers = ["z3"] 
-    instances = [6, 8, 10, 12, 14, 16, 18]
+    instances = [6, 8, 10, 12, 14, 16]
     output_dir = DEFAULT_SMT_OUTPUT_DIR
     os.makedirs(output_dir, exist_ok=True)
 

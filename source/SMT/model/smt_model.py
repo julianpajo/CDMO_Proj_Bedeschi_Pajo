@@ -106,7 +106,7 @@ def add_domain_constrain(per, Teams, Weeks, Periods, s):
 
 
 # ----------------------
-# CHANNELLING CONSTRAINT
+# CHANNELING CONSTRAINT
 # ----------------------
 
 def constraint_period_consistency(home, per, Teams, Weeks, Periods, s):
@@ -117,7 +117,7 @@ def constraint_period_consistency(home, per, Teams, Weeks, Periods, s):
                 s.add(Implies(plays_together, per[i][w] == per[j][w]))
 
 
-def add_channelling_constraint(home, per, Teams, Weeks, Periods, s):
+def add_channeling_constraint(home, per, Teams, Weeks, Periods, s):
     constraint_period_consistency(home, per, Teams, Weeks, Periods, s)
 
 
@@ -185,3 +185,26 @@ def add_symmetry_breaking_constraints(home, per, Teams, Weeks, s, use_optimizati
     add_sb2(home, Teams, Weeks, s)
     if not use_optimization:
         add_team_order_constraint(home, Teams, Weeks, s)
+
+
+
+# -----------------------
+# OPTIMIZATION CONSTRAINT
+# -----------------------
+
+def add_max_diff_constraint(home, Teams, Weeks, max_diff, s):
+    total_games = len(Weeks)
+    
+    for i in Teams:
+        home_games = []
+        for j in Teams:
+            if i == j:
+                continue
+            for w in Weeks:
+                home_games.append(home[i][j][w])
+        
+        min_home = (total_games - max_diff) // 2
+        max_home = (total_games + max_diff) // 2
+        
+        s.add(at_least_k(home_games, min_home))
+        s.add(at_most_k(home_games, max_home))
