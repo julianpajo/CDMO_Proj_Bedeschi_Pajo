@@ -86,7 +86,7 @@ def parse_solution(result):
         variable_mapping = result["variable_mapping"]
 
         if not variable_mapping or "to_var" not in variable_mapping:
-            print("[ERROR] variable_mapping missing or invalid")
+            print("Variable_mapping missing or invalid")
             return []
 
         # Read the assignments from the DIMACS output
@@ -140,7 +140,7 @@ def make_key(solver_name, sb, opt):
     Creates a unique key for the solver configuration.
 
     Params:
-        solver_name: String name of the solver (e.g., "z3").
+        solver_name: String name of the solver.
         sb: Boolean indicating if symmetry breaking is used.
         opt: Boolean indicating if optimization is used.
 
@@ -192,6 +192,9 @@ def process_result(result, use_optimization):
 
     solution = parse_solution(result)
     has_solution = bool(solution)
+
+    if has_solution == False:
+        time_val = 300
 
     if use_optimization and has_solution:
         max_diff = result["extra_params"].get("max_diff")

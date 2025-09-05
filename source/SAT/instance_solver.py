@@ -16,7 +16,7 @@ SOLVERS = {
 def solve_instance(n_teams, solver_name, use_sb=False, use_optimization=False, path=None):
     """
     Solves a SAT instance with optional home-away optimization.
-    Returns a dictionary with model, variables, and statistics.
+    Returns a structured result.
     """
     start_time = time.time()
     Teams = list(range(n_teams))
@@ -117,8 +117,8 @@ def solve_with_z3(solver, home, per, Weeks, Periods, extra_params, start_time):
 
 def solve_with_dimacs(solver, home, per, solver_name, Weeks, Periods, extra_params, start_time, solvers_config=None, instance_name=None):
     """
-    Solve using an external DIMACS solver (e.g., Glucose) with proper file handling
-    and unique temporary files.
+    Solve using an external DIMACS solver (Glucose) with proper file handling and unique temporary files,
+    and return a structured result.
     """
 
     if solvers_config is None:
@@ -139,7 +139,7 @@ def solve_with_dimacs(solver, home, per, solver_name, Weeks, Periods, extra_para
         # 2. Build structured variable mapping for home/per
         variable_mapping = build_variable_mapping(home, per, var_map, Teams, Weeks, Periods)
         if variable_mapping is None:
-            print("WARNING: Variable mapping failed")
+            print("Variable mapping failed")
             variable_mapping = get_all_variables_for_dimacs_from_variables_only(
                 home, per, Teams, Weeks, Periods, solver
             )

@@ -9,7 +9,7 @@ import gc
 current_dir = os.getcwd()
 DEFAULT_SAT_OUTPUT_DIR = os.path.join(current_dir, 'res/SAT')
 
-# DIMACS solvers
+# Solvers
 SOLVERS = {
     "z3": None,
     "glucose": "/usr/local/bin/glucose"
@@ -91,7 +91,7 @@ def run_single_instance(n, solver, use_sb=False, use_optimization=False):
 
     Params:
         n: Number of teams (instances)
-        solver: The solver to use ("z3")
+        solver: The solver to use
         use_sb: Whether to use symmetry breaking
         use_optimization: Whether to use optimization techniques
     """

@@ -79,7 +79,7 @@ def build_variable_mapping(home, per, var_map, Teams, Weeks, Periods):
 def get_all_variables_for_dimacs_from_variables_only(home, per, Teams, Weeks, Periods, solver):
     """
     Builds the variable -> DIMACS ID mapping from Z3 model variables (home/per)
-    and the solver, when home/per are 3D lists (matrices).
+    and the solver.
 
     Returns mapping:
         {"to_var": {dimacs_id: ("home"/"period", i,j,w[,p])},

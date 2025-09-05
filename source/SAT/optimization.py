@@ -12,7 +12,6 @@ import os
 def optimize_home_away_difference(n_teams, use_sb=False, timeout=300):
     """
     Optimize home-away difference using binary search on max imbalance (Z3).
-    Works with home/per as 3D matrices.
     """
     start_time = time.time()
 
@@ -65,7 +64,7 @@ def optimize_home_away_difference(n_teams, use_sb=False, timeout=300):
 
 def optimize_home_away_difference_glucose(n_teams, glucose_path, use_sb=False, timeout=300):
     """
-    Optimize home-away difference using binary search on max imbalance via Glucose DIMACS.
+    Optimize home-away difference using binary search on max imbalance (Glucose).
     """
     start_time = time.time()
     Teams = list(range(n_teams))

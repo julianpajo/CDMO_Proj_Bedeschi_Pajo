@@ -29,17 +29,12 @@ def build_model(n_teams, use_sb=False, use_optimization=False, max_diff_constrai
     home, per = sat_model.create_variables(Teams, Weeks, Periods)
     
     # Add constraints
-    
     sat_model.add_hard_constraints(home, per, Teams, Weeks, Periods, solver)
-    sat_model.add_channelling_constraint(home, per, Teams, Weeks, Periods, solver)
+    sat_model.add_channeling_constraint(home, per, Teams, Weeks, Periods, solver)
     sat_model.add_implied_constraints(home, per, Teams, Weeks, Periods, solver)  
 
     if use_sb:
         sat_model.add_symmetry_breaking_constraints(home, per, Teams, Weeks, Periods, solver, use_optimization)
-      
-
-    if use_optimization and max_diff_constraint is not None:
-        sat_model.add_max_diff_constraint(home, Teams, Weeks, max_diff_constraint, solver)
 
     
     extra_params = {

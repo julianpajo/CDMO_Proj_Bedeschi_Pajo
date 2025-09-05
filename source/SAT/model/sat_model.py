@@ -96,7 +96,7 @@ def add_hard_constraints(home, per, Teams, Weeks, Periods, s):
 
 
 # ----------------------
-# CHANNELLING CONSTRAINT
+# CHANNELING CONSTRAINT
 # ----------------------
 
 def constraint_period_consistency(home, per, Teams, Weeks, Periods, s):
@@ -113,7 +113,7 @@ def constraint_period_consistency(home, per, Teams, Weeks, Periods, s):
                         # If match occurs, then (per[i] ∨ ¬per[j])
                         s.add(Or(Not(match_occurs), per[i][w][p], Not(per[j][w][p])))
 
-def add_channelling_constraint(home, per, Teams, Weeks, Periods, s):
+def add_channeling_constraint(home, per, Teams, Weeks, Periods, s):
     constraint_period_consistency(home, per, Teams, Weeks, Periods, s)
 
 
