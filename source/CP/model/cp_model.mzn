@@ -23,7 +23,7 @@ set of int: PERIODS = 1..periods;
 array[TEAMS, WEEKS] of var TEAMS: O;
 
 % Place matrix: P[i,j] = 1 if home, 0 if away
-array[TEAMS, WEEKS] of var 0..1: P;
+array[TEAMS, WEEKS] of var 0..1: PL;
 
 % Period assignment: per[i,j] = period where team i plays in week j
 array[TEAMS, WEEKS] of var PERIODS: per;
@@ -72,7 +72,7 @@ constraint
 constraint
     forall(i in TEAMS, j in WEEKS) (
         O[O[i,j], j] = i /\
-        P[i,j] + P[O[i,j], j] = 1
+        PL[i,j] + PL[O[i,j], j] = 1
     );
 
 % (6) Period consistency
@@ -98,7 +98,7 @@ constraint
 % =============================
 
 % (SB1) Fixes first match of team 1 at home.
-constraint sb -> P[1,1] = 1;
+constraint sb -> PL[1,1] = 1;
 
 % (SB2) Fixes opponent order for team 1 to break week/opponent symmetries.
 constraint sb -> forall(j in WEEKS) (O[1,j] = j+1);
@@ -108,10 +108,10 @@ constraint sb -> forall(j in WEEKS) (O[1,j] = j+1);
 % =====================
 
 array[TEAMS] of var 0..weeks: num_home =
-    [ sum([ bool2int(P[t,w] = 1) | w in WEEKS ]) | t in TEAMS ];
+    [ sum([ bool2int(PL[t,w] = 1) | w in WEEKS ]) | t in TEAMS ];
 
 array[TEAMS] of var 0..weeks: num_away =
-    [ sum([ bool2int(P[t,w] = 0) | w in WEEKS ]) | t in TEAMS ];
+    [ sum([ bool2int(PL[t,w] = 0) | w in WEEKS ]) | t in TEAMS ];
 
 array[TEAMS] of var 1..weeks: imbalances =
     [ abs(num_home[t] - num_away[t]) | t in TEAMS ];

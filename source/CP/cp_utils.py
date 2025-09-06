@@ -68,7 +68,7 @@ def parse_solution(solution):
                 continue
 
             opp = solution.O[t][w]
-            is_home = solution.P[t][w]
+            is_home = solution.PL[t][w]
 
             if is_home == 1:
                 weekly[w][p] = [t + 1, opp]
