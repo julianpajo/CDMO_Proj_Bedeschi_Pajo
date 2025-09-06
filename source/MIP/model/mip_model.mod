@@ -31,8 +31,8 @@ var H {h in TEAMS, a in TEAMS, w in WEEKS: h <> a} binary;
 # Variables for optimization (home/away balance)
 var home_games {t in TEAMS} integer >= 0 <= W;
 var away_games {t in TEAMS} integer >= 0 <= W;
-var imbalance  {t in TEAMS} integer >= 0 <= W;
-var max_imbalance integer >= 0 <= W;
+var imbalance  {t in TEAMS} integer >= 1 <= W;
+var max_imbalance integer >= 1 <= W;
 
 
 # =========================
