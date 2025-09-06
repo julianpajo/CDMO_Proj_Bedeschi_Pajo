@@ -38,7 +38,7 @@ def build_model(path, use_sb=False, heuristic=1, use_optimization=False):
         search = """
         solve :: seq_search([
             int_search([O[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min),
-            int_search([P[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min),
+            int_search([PL[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min),
             int_search([per[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min)
         ])
         """
@@ -50,7 +50,7 @@ def build_model(path, use_sb=False, heuristic=1, use_optimization=False):
         solve 
         :: seq_search([
             int_search([O[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min),
-            int_search([P[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min),
+            int_search([PL[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min),
             int_search([per[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min)
         ])
         :: restart_luby(250)
@@ -63,13 +63,13 @@ def build_model(path, use_sb=False, heuristic=1, use_optimization=False):
         solve 
         :: seq_search([
             int_search([O[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min),
-            int_search([P[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min),
+            int_search([PL[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min),
             int_search([per[t,w] | t in TEAMS, w in WEEKS], dom_w_deg, indomain_min)
         ])
         :: restart_luby(250)
         :: relax_and_reconstruct(
             [O[t,w] | t in TEAMS, w in WEEKS] ++
-            [P[t,w] | t in TEAMS, w in WEEKS] ++
+            [PL[t,w] | t in TEAMS, w in WEEKS] ++
             [per[t,w] | t in TEAMS, w in WEEKS], 85)
         """
         model.add_string(search + (" minimize max_imbalance;" if use_optimization else " satisfy;"))
